@@ -146,20 +146,81 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    captureRegistrationBtn.addEventListener('click', function() {
-      alert('Face registration feature coming soon...');
-      
-      if (registrationStream) {
-        registrationStream.getTracks().forEach(track => track.stop());
-        registrationVideo.srcObject = null;
-        registrationVideo.style.display = 'none';
-        registrationPlaceholder.style.display = 'block';
-        startRegistrationBtn.style.display = 'inline-block';
-        captureRegistrationBtn.style.display = 'none';
-      }
-      
-      hideModal('faceRegistrationModal');
+    captureRegistrationBtn.addEventListener('click', async function () {
+  try {
+    // 1️⃣ Capture image from video
+    const canvas = document.createElement('canvas');
+    canvas.width = registrationVideo.videoWidth;
+    canvas.height = registrationVideo.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(registrationVideo, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9); // base64 JPEG
+
+    // 2️⃣ Call Flask API to encode the face
+    const encodeResp = await fetch('http://10.157.42.46:5000/encode-face', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_base64: dataUrl })
     });
+    if (!encodeResp.ok) {
+      throw new Error(`Flask encode failed: ${encodeResp.status}`);
+    }
+    const encodeData = await encodeResp.json();
+    if (encodeData.error) throw new Error(encodeData.error);
+
+    // 3️⃣ Send to Laravel API
+    const studentId = document.getElementById('studentInfoForRegistration').dataset.studentId;
+
+const laravelResp = await fetch('/api/register-face', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+    Authorization: `Bearer ${window.authToken || ''}`
+  },
+  body: JSON.stringify({
+    student_id: studentId,
+    face_encoding: encodeData.encoding,
+    source: 'camera_capture',
+    face_image_data: dataUrl.split(',')[1],
+    face_image_mime_type: 'image/jpeg',
+    confidence_score: encodeData.confidence,
+    face_landmarks: encodeData.landmarks
+  })
+});
+
+
+    // ✅ Read text first to avoid JSON parse errors
+    const rawText = await laravelResp.text();
+    let result;
+    try {
+      result = JSON.parse(rawText);
+    } catch (e) {
+      // The response isn’t JSON (likely an HTML error page)
+      throw new Error(`Invalid JSON from server:\n${rawText.substring(0, 200)}…`);
+    }
+
+    if (!laravelResp.ok || !result.success) {
+      throw new Error(result.message || `Laravel error: ${laravelResp.status}`);
+    }
+
+    alert('Face registered successfully');
+  } catch (err) {
+    console.error('Registration error:', err);
+    alert('Registration error: ' + err.message);
+  } finally {
+    // 4️⃣ Clean up camera and close modal
+    if (registrationStream) {
+      registrationStream.getTracks().forEach(t => t.stop());
+      registrationVideo.srcObject = null;
+    }
+    registrationVideo.style.display = 'none';
+    registrationPlaceholder.style.display = 'block';
+    startRegistrationBtn.style.display = 'inline-block';
+    captureRegistrationBtn.style.display = 'none';
+    hideModal('faceRegistrationModal');
+  }
+});
 
     // Modal cleanup
     document.getElementById('facialRecognitionModal').addEventListener('hidden.bs.modal', function() {
@@ -423,44 +484,38 @@ window.viewStudent = function(studentId) {
       });
   }
 
-window.registerFace = function(studentId) {
-    // Fetch student data first
+ window.registerFace = function (studentId) {
+
+
     fetch(`/guidance/students/${studentId}/info`)
-      .then(response => response.json())
+      .then(r => r.json())
       .then(data => {
-        document.getElementById('studentInfoForRegistration').innerHTML = `
+        const container = document.getElementById('studentInfoForRegistration');
+        container.dataset.studentId = studentId; // <— for captureRegistrationBtn
+        container.innerHTML = `
           <div class="card">
-            <div class="card-body">
-              <div class="text-center mb-3">
-                ${data.id_photo_data_url && data.id_photo_data_url !== null ? 
-                  `<img src="${data.id_photo_data_url}" alt="Student Photo" class="img-fluid rounded-circle" style="max-width: 100px;">` :
-                  `<div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 100px; height: 100px;">
-                     <i class="ri-user-line text-white"></i>
-                   </div>`
-                }
-              </div>
-              <h6 class="text-center">${data.first_name} ${data.last_name}</h6>
-              <p class="text-center text-muted mb-1">ID: ${data.student_id || 'N/A'}</p>
-              <p class="text-center text-muted">${data.grade_level}${data.section ? ' - ' + data.section : ''}</p>
+            <div class="card-body text-center">
+              ${
+                data.id_photo_data_url
+                  ? `<img src="${data.id_photo_data_url}" class="img-fluid rounded-circle mb-2" style="max-width:100px;">`
+                  : `<div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" style="width:100px;height:100px;"><i class="ri-user-line text-white"></i></div>`
+              }
+              <h6>${data.first_name} ${data.last_name}</h6>
+              <p class="text-muted mb-0">ID: ${data.student_id || 'N/A'}</p>
+              <p class="text-muted">${data.grade_level}${data.section ? ' - ' + data.section : ''}</p>
+
+
+
             </div>
-          </div>
-        `;
+          </div>`;
+
         showModal('faceRegistrationModal');
       })
-      .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('studentInfoForRegistration').innerHTML = `
-          <div class="card">
-            <div class="card-body">
-              <h6>Student ID: ${studentId}</h6>
-              <p class="mb-0">Face registration will be implemented soon.</p>
-            </div>
-          </div>
-        `;
-        showModal('faceRegistrationModal');
-      });
-  }
-
+      .catch(err => {
+        console.error(err);
+        alert('Error loading student info');
+          });
+  };       
 window.viewViolations = function(studentId) {
     window.location.href = `/guidance/violations?student_id=${studentId}`;
   }
