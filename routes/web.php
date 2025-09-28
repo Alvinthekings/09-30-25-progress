@@ -307,6 +307,7 @@ Route::prefix('guidance')->name('guidance.')->group(function () {
                 // Enroll face logic
             })->name('enroll');
               }); // ✅ properly closes the facial-recognition group
+
             // Facial Recognition Route (moved outside guidance prefix)
 Route::post('/recognize-face', function (Request $request) {
     // Start output buffering to prevent extra output
