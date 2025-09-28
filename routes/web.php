@@ -306,11 +306,90 @@ Route::prefix('guidance')->name('guidance.')->group(function () {
             Route::post('/enroll', function () {
                 // Enroll face logic
             })->name('enroll');
-            
-            Route::post('/recognize', function () {
-                // Face recognition logic
-            })->name('recognize');
-        });
+              }); // ✅ properly closes the facial-recognition group
+            // Facial Recognition Route (moved outside guidance prefix)
+Route::post('/recognize-face', function (Request $request) {
+    // Start output buffering to prevent extra output
+    ob_start();
+
+    try {
+        // Validate input
+        $request->validate([
+            'face_encoding' => 'required|array',
+            'threshold'     => 'nullable|numeric|min:0.1|max:1.0',
+        ]);
+
+        $threshold = $request->input('threshold', 0.35);
+        $inputEncoding = $request->face_encoding;
+
+        // Normalize input encoding
+        $norm = sqrt(array_sum(array_map(fn($v) => $v * $v, $inputEncoding)));
+        if ($norm == 0) {
+            throw new \Exception('Invalid face encoding: zero vector');
+        }
+        $inputEncoding = array_map(fn($v) => $v / $norm, $inputEncoding);
+
+        $registeredFaces = FaceRegistration::with('student')
+            ->whereNotNull('face_encoding')
+            ->get();
+
+        $bestMatch = null;
+        $bestScore = -1;
+        $debug = [];
+
+        foreach ($registeredFaces as $face) {
+            $storedEncoding = json_decode($face->face_encoding, true);
+            if (!is_array($storedEncoding) || empty($storedEncoding)) continue;
+
+            $normStored = sqrt(array_sum(array_map(fn($v) => $v * $v, $storedEncoding)));
+            if ($normStored == 0) continue;
+            $storedEncoding = array_map(fn($v) => $v / $normStored, $storedEncoding);
+
+            $dot = array_sum(array_map(fn($a, $b) => $a * $b, $inputEncoding, $storedEncoding));
+
+            $debug[] = [
+                'student_id'   => $face->student_id,
+                'student_name' => $face->student->first_name . ' ' . $face->student->last_name,
+                'similarity'   => $dot,
+            ];
+
+            if ($dot > $bestScore && $dot >= $threshold) {
+                $bestScore = $dot;
+                $bestMatch = $face;
+            }
+        }
+
+        // Clean any unexpected output before returning JSON
+        ob_end_clean();
+
+        return response()->json([
+            'success'    => true,
+            'recognized' => (bool) $bestMatch,
+            'confidence' => $bestScore,
+            'student'    => $bestMatch?->student?->only(['id','first_name','last_name']),
+            'face'       => $bestMatch?->only(['id','student_id']),
+            'debug'      => $debug,
+            'message'    => $bestMatch ? 'Face recognized' : 'No matching face found',
+        ]);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        ob_end_clean();
+        return response()->json([
+            'success' => false,
+            'message' => 'Validation failed',
+            'errors'  => $e->errors(),
+        ], 422);
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        Log::error('Face recognition error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        return response()->json([
+            'success' => false,
+            'message' => 'Server error during face recognition',
+            'error'   => $e->getMessage(),
+        ], 500);
+    }
+})->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+        //     })->name('recognize');
+        // });
         
         // Disciplinary Actions Routes (to be implemented)
         Route::prefix('disciplinary-actions')->name('disciplinary-actions.')->group(function () {
