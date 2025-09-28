@@ -121,11 +121,69 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    captureBtn.addEventListener('click', function() {
-      document.getElementById('recognitionResult').style.display = 'block';
-      document.getElementById('resultContent').innerHTML = 
-        '<div class="alert alert-info">Facial recognition feature coming soon...</div>';
+     captureBtn.addEventListener('click', async function () {
+  const resultBox = document.getElementById('recognitionResult');
+  const resultContent = document.getElementById('resultContent');
+  resultBox.style.display = 'block';
+  resultContent.innerHTML = '<div class="alert alert-info">Processing…</div>';
+
+  try {
+    // 1️⃣ Capture current frame as base64 JPEG
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+    // 2️⃣ Send to Flask encoder
+    const encodeResp = await fetch('http://10.157.42.46:5000/encode-face', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_base64: dataUrl })
     });
+    if (!encodeResp.ok) throw new Error('Flask encode failed');
+    const encodeData = await encodeResp.json();
+    if (encodeData.error) throw new Error(encodeData.error);
+
+    // 3️⃣ Call Laravel /recognize-face
+ const laravelResp = await fetch('/guidance/recognize-face', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({
+        face_encoding: encodeData.encoding,
+        threshold: 0.35          // same default as your PHP code
+      })
+    });
+
+    const raw = await laravelResp.text();
+    let result;
+    try { result = JSON.parse(raw); }
+    catch { throw new Error(`Invalid JSON from server:\n${raw.slice(0,200)}…`); }
+
+    // 4️⃣ Display result
+    if (result.success && result.recognized) {
+      const s = result.student;
+      resultContent.innerHTML = `
+        <div class="alert alert-success">
+          ✅ Recognized: <strong>${s.first_name} ${s.last_name}</strong><br>
+          Confidence: ${(result.confidence * 100).toFixed(1)}%
+        </div>`;
+    } else {
+      resultContent.innerHTML = `
+        <div class="alert alert-warning">
+          No matching face found.
+        </div>`;
+    }
+  } catch (err) {
+    console.error(err);
+    resultContent.innerHTML =
+      `<div class="alert alert-danger">Recognition error: ${err.message}</div>`;
+  }
+});
 
     // Registration camera controls
     const registrationVideo = document.getElementById('registrationVideo');
