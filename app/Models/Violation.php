@@ -14,21 +14,23 @@ class Violation extends Model
         'title',
         'description',
         'severity',
+        'major_category',
         'violation_date',
         'violation_time',
         'location',
         'witnesses',
-        'evidence',
         'attachments',
-        'status',
-        'resolution',
-        'resolved_by',
-        'resolved_at',
-        'student_statement',
-        'disciplinary_action',
-        'parent_notified',
-        'parent_notification_date',
-        'notes',
+        // Removed unnecessary fields for new violations:
+        // 'evidence',
+        // 'status', // will be set to 'pending' by default
+        // 'resolution',
+        // 'resolved_by',
+        // 'resolved_at',
+        // 'student_statement',
+        // 'disciplinary_action',
+        // 'parent_notified',
+        // 'parent_notification_date',
+        // 'notes',
     ];
 
     protected $casts = [
@@ -72,7 +74,7 @@ class Violation extends Model
         return match($this->severity) {
             'minor' => 'success',
             'major' => 'warning',
-            'severe' => 'danger',
+            // Removed 'severe' since it doesn't exist
             default => 'secondary'
         };
     }
@@ -113,5 +115,20 @@ class Violation extends Model
     public function getActionTakenAttribute(): string
     {
         return $this->disciplinary_action ?: $this->resolution ?: 'No action recorded';
+    }
+
+    /**
+     * Boot method for setting default values
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($violation) {
+            // Set default status if not provided
+            if (empty($violation->status)) {
+                $violation->status = 'pending';
+            }
+        });
     }
 }

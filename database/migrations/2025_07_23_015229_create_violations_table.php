@@ -15,15 +15,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('student_id')->constrained('students')->onDelete('cascade');
             $table->foreignId('reported_by')->constrained('guidance_discipline')->onDelete('cascade');
-            $table->string('violation_type'); // e.g., 'late', 'uniform', 'misconduct', 'academic'
+            $table->string('violation_type'); // e.g., 'uniform', 'behavior', 'academic', 'technology', 'appearance'
             $table->string('title');
             $table->text('description');
-            $table->enum('severity', ['minor', 'major', 'severe'])->default('minor');
+            $table->enum('severity', ['minor', 'major'])->default('minor'); // Removed 'severe'
+            $table->string('major_category')->nullable(); // For major offenses: 'Category 1', 'Category 2', 'Category 3'
+            
             $table->date('violation_date');
             $table->time('violation_time')->nullable();
             $table->string('location')->nullable();
             $table->json('witnesses')->nullable(); // Array of witness names
-            $table->text('evidence')->nullable(); // Description of evidence
+            // $table->text('evidence')->nullable(); // Description of evidence
             $table->json('attachments')->nullable(); // File paths for photos/documents
             $table->enum('status', ['pending', 'investigating', 'resolved', 'dismissed'])->default('pending');
             $table->text('resolution')->nullable();
@@ -40,6 +42,7 @@ return new class extends Migration
             $table->index(['student_id', 'violation_date']);
             $table->index(['status', 'severity']);
             $table->index('violation_type');
+            $table->index('major_category');
         });
     }
 
