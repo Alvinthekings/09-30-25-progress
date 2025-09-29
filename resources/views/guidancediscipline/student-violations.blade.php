@@ -8,8 +8,11 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
           <h1 class="section-title mb-0">Violations Management</h1>
           <div class="d-flex align-items-center gap-3">
-            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createViolationModal">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#recordViolationModal">
               <i class="ri-add-line me-2"></i>Report New Violation
+            </button>
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#facialRecognitionModal">
+              <i class="ri-camera-line me-2"></i>Face Scanner
             </button>
             <div class="text-muted">
               <i class="ri-calendar-line me-1"></i>{{ now()->format('F j, Y') }}
@@ -95,18 +98,18 @@
               <label for="severityFilter" class="form-label fw-bold">Severity</label>
               <select class="form-select" id="severityFilter">
                 <option value="">All Severities</option>
-                <option value="minor">Minor</option>
-                <option value="major">Major</option>
-                <option value="severe">Severe</option>
+                <option value="minor">Minor Offense</option>
+                <option value="major">Major Offense</option>
               </select>
             </div>
             <div class="col-md-2">
               <label for="typeFilter" class="form-label fw-bold">Type</label>
               <select class="form-select" id="typeFilter">
                 <option value="">All Types</option>
-                <option value="late">Late Arrival</option>
                 <option value="uniform">Uniform</option>
-                <option value="misconduct">Misconduct</option>
+                <option value="technology">Technology</option>
+                <option value="appearance">Appearance</option>
+                <option value="behavior">Behavior</option>
                 <option value="academic">Academic</option>
                 <option value="other">Other</option>
               </select>
@@ -156,8 +159,8 @@
                       <span class="badge bg-secondary">{{ ucfirst($violation->violation_type) }}</span>
                     </td>
                     <td>
-                      <span class="badge bg-{{ $violation->severity === 'minor' ? 'success' : ($violation->severity === 'major' ? 'warning' : 'danger') }}">
-                        {{ ucfirst($violation->severity) }}
+                      <span class="badge bg-{{ $violation->severity === 'minor' ? 'success' : 'warning' }}">
+                        {{ $violation->severity === 'minor' ? 'Minor Offense' : 'Major Offense' }}
                       </span>
                     </td>
                     <td>
@@ -173,19 +176,19 @@
                     </td>
                     <td>
                       <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                        <button type="button" class="btn btn-sm btn-outline-primary"
                                 onclick="viewViolation({{ $violation->id }})"
                                 title="View Details">
                           <i class="ri-eye-line"></i>
                         </button>
                         @if($violation->status !== 'resolved')
-                        <button type="button" class="btn btn-sm btn-outline-warning" 
+                        <button type="button" class="btn btn-sm btn-outline-warning"
                                 onclick="editViolation({{ $violation->id }})"
                                 title="Edit">
                           <i class="ri-edit-line"></i>
                         </button>
                         @endif
-                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                        <button type="button" class="btn btn-sm btn-outline-danger"
                                 onclick="deleteViolation({{ $violation->id }})"
                                 title="Delete">
                           <i class="ri-delete-bin-line"></i>
@@ -210,7 +213,7 @@
             <div class="d-flex justify-content-between align-items-center mt-4">
               <div>
                 <small class="text-muted">
-                  Showing {{ $violations->firstItem() ?: 0 }} to {{ $violations->lastItem() ?: 0 }} 
+                  Showing {{ $violations->firstItem() ?: 0 }} to {{ $violations->lastItem() ?: 0 }}
                   of {{ $violations->total() }} violations
                 </small>
               </div>
@@ -224,32 +227,7 @@
     </div>
   </div>
 
-  <!-- Edit Violation Modal -->
-  <div class="modal fade" id="editViolationModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="ri-edit-line me-2"></i>Edit Violation
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <form id="editViolationForm" method="POST">
-          @csrf
-          @method('PUT')
-          <div class="modal-body" id="editViolationModalBody">
-            <!-- Violation edit form will be loaded here -->
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="hideModal('editViolationModal')">Cancel</button>
-            <button type="submit" class="btn btn-primary">
-              <i class="ri-save-line me-2"></i>Update Violation
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
+
 
   <!-- View Violation Modal -->
   <div class="modal fade" id="viewViolationModal" tabindex="-1">
@@ -271,163 +249,235 @@
     </div>
   </div>
 
-  <!-- Create Violation Modal -->
-  <div class="modal fade" id="createViolationModal" tabindex="-1">
+  <!-- Record Violation Modal -->
+  <div class="modal fade" id="recordViolationModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-      <div class="modal-content">
+      <form id="recordViolationForm" class="modal-content" enctype="multipart/form-data">
+        @csrf
         <div class="modal-header">
           <h5 class="modal-title">
-            <i class="ri-add-line me-2"></i>Report New Violation
+            <i class="ri-alert-line me-2"></i>Record Violation
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <form action="{{ route('guidance.violations.store') }}" method="POST" enctype="multipart/form-data">
-          @csrf
-          <div class="modal-body">
-            <div class="row">
-              <div class="col-md-6">
-                <div class="mb-3">
-                  <label for="student_id" class="form-label">Student <span class="text-danger">*</span></label>
-                  <select class="form-select" id="student_id" name="student_id" required>
-                    <option value="">Select Student</option>
-                    @foreach($students as $student)
-                      <option value="{{ $student->id }}">
-                        {{ $student->first_name }} {{ $student->last_name }} 
-                        ({{ $student->student_id ?: 'No ID' }})
-                      </option>
-                    @endforeach
-                  </select>
-                </div>
+
+        <div class="modal-body">
+        <!-- Hidden Fields -->
+        <input type="hidden" name="reported_by" value="{{ auth()->id() }}">
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Student</label>
+                <select class="form-select" id="violationStudentSelect" name="student_id" required>
+                  <option value="">Select Student</option>
+                  @foreach($students as $student)
+                    <option value="{{ $student->id }}">
+                      {{ $student->first_name }} {{ $student->last_name }}
+                      ({{ $student->student_id ?: 'No ID' }})
+                    </option>
+                  @endforeach
+                </select>
               </div>
-              <div class="col-md-6">
-                <div class="mb-3">
-                  <label for="violation_type" class="form-label">Violation Type <span class="text-danger">*</span></label>
-                  <select class="form-select" id="violation_type" name="violation_type" required>
-                    <option value="">Select Type</option>
-                    <option value="late">Late Arrival</option>
-                    <option value="uniform">Uniform Violation</option>
-                    <option value="misconduct">Misconduct</option>
-                    <option value="academic">Academic Dishonesty</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
+
+              <div class="mb-3">
+              <label class="form-label fw-bold">Violation Type</label>
+              <select class="form-select" name="violation_type" required>
+                <option value="">-- Select Type --</option>
+                <option value="uniform">Uniform</option>
+                <option value="technology">Technology</option>
+                <option value="appearance">Appearance</option>
+                <option value="behavior">Behavior</option>
+                <option value="academic">Academic</option>
+                <option value="other">Other</option>
+              </select>
               </div>
-            </div>
-            
-            <div class="mb-3">
-              <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="title" name="title" required 
-                     placeholder="Brief description of the violation">
-            </div>
-            
-            <div class="mb-3">
-              <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
-              <textarea class="form-control" id="description" name="description" rows="3" required
-                        placeholder="Detailed description of what happened"></textarea>
-            </div>
-            
-            <div class="row">
-              <div class="col-md-4">
-                <div class="mb-3">
-                  <label for="severity" class="form-label">Severity <span class="text-danger">*</span></label>
-                  <select class="form-select" id="severity" name="severity" required>
-                    <option value="minor">Minor</option>
-                    <option value="major">Major</option>
-                    <option value="severe">Severe</option>
-                  </select>
-                </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Severity</label>
+                <select class="form-select" name="severity" id="violationSeverity" required>
+                  <option value="">-- Select Severity --</option>
+                  <option value="minor">Minor Offense</option>
+                  <option value="major">Major Offense</option>
+                </select>
               </div>
-              <div class="col-md-4">
-                <div class="mb-3">
-                  <label for="violation_date" class="form-label">Date <span class="text-danger">*</span></label>
-                  <input type="date" class="form-control" id="violation_date" name="violation_date" 
-                         value="{{ date('Y-m-d') }}" required>
-                </div>
+
+              <div class="mb-3 d-none" id="majorCategoryWrapper">
+                <label class="form-label fw-bold">Major Category</label>
+                <select class="form-select" name="major_category" id="majorCategory">
+                  <option value="">-- Select Category --</option>
+                  <option value="Category 1">Category 1</option>
+                  <option value="Category 2">Category 2</option>
+                  <option value="Category 3">Category 3</option>
+                </select>
               </div>
-              <div class="col-md-4">
-                <div class="mb-3">
-                  <label for="violation_time" class="form-label">Time</label>
-                  <input type="time" class="form-control" id="violation_time" name="violation_time">
-                </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Title/Offense</label>
+                <select class="form-select" name="title" id="violationTitle" required>
+                  <option value="">-- Select Offense --</option>
+                </select>
+                <small class="text-muted">Select severity and category first to see available offenses</small>
               </div>
             </div>
-            
-            <div class="mb-3">
-              <label for="location" class="form-label">Location</label>
-              <input type="text" class="form-control" id="location" name="location" 
-                     placeholder="Where did this happen?">
-            </div>
-            
-            <div class="mb-3">
-              <label for="witnesses" class="form-label">Witnesses</label>
-              <textarea class="form-control" id="witnesses" name="witnesses" rows="2"
-                        placeholder="Names of witnesses (one per line)"></textarea>
-            </div>
-            
-            
-            <div class="mb-3">
-              <label for="attachments" class="form-label">Attachments</label>
-              <input type="file" class="form-control" id="attachments" name="attachments[]" multiple
-                     accept="image/*,.pdf,.doc,.docx">
-              <div class="form-text">Upload images or documents as evidence</div>
+
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Violation Date</label>
+                <input type="date" class="form-control" name="violation_date" id="violationDate" value="{{ now()->toDateString() }}" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Violation Time</label>
+                <input type="time" class="form-control" name="violation_time" value="{{ now()->format('H:i') }}">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Location</label>
+                <input type="text" class="form-control" name="location" id="violationLocation" placeholder="e.g., Classroom, Cafeteria, Playground">
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Witnesses</label>
+                <div id="witnessesContainer">
+                  <div class="input-group mb-2">
+                    <input type="text" class="form-control" name="witnesses[]" placeholder="Witness name">
+                    <button type="button" class="btn btn-outline-secondary" onclick="addWitnessField()">
+                      <i class="ri-add-line"></i>
+                    </button>
+                  </div>
+                </div>
+                <small class="text-muted">Add multiple witnesses if needed</small>
+              </div>
             </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">
-              <i class="ri-save-line me-2"></i>Report Violation
-            </button>
+
+          <div class="row">
+            <div class="col-12">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Description / Details</label>
+                <textarea class="form-control" name="description" id="violationDescription" rows="3" placeholder="Provide detailed description of the violation..." required></textarea>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Attachments</label>
+                <input type="file" class="form-control" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" required>
+                <small class="text-muted">You must select at least one file (images, PDFs, documents)</small>
+              </div>
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Submit Violation</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <!-- View Violation Modal -->
-  <div class="modal fade" id="viewViolationModal" tabindex="-1">
+  <!-- Facial Recognition Scanner Modal -->
+  <div class="modal fade" id="facialRecognitionModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">
-            <i class="ri-eye-line me-2"></i>Violation Details
+            <i class="ri-camera-line me-2"></i>Facial Recognition Scanner
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body" id="viewViolationModalBody">
-          <!-- Violation details will be loaded here -->
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" onclick="hideModal('viewViolationModal')">Close</button>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="text-center">
+                <video id="video" width="100%" height="300" autoplay style="display: none;"></video>
+                <div id="cameraPlaceholder" class="border rounded p-5 text-center" style="height: 300px; background: #f8f9fa;">
+                  <i class="ri-camera-line display-1 text-muted"></i>
+                  <p class="text-muted">Click "Start Camera" to begin facial recognition</p>
+                </div>
+                <canvas id="canvas" style="display: none;"></canvas>
+              </div>
+              <div class="text-center mt-3">
+                <button type="button" class="btn btn-primary" id="startCamera">
+                  <i class="ri-camera-line me-2"></i>Start Camera
+                </button>
+                <button type="button" class="btn btn-success" id="capturePhoto" style="display: none;">
+                  <i class="ri-camera-3-line me-2"></i>Capture Photo
+                </button>
+                <button type="button" class="btn btn-danger" id="stopCamera" style="display: none;">
+                  <i class="ri-stop-line me-2"></i>Stop Camera
+                </button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <h6>Instructions:</h6>
+              <ul class="list-unstyled">
+                <li><i class="ri-check-line text-success me-2"></i>Look directly at the camera</li>
+                <li><i class="ri-check-line text-success me-2"></i>Ensure good lighting</li>
+                <li><i class="ri-check-line text-success me-2"></i>Remove glasses if possible</li>
+                <li><i class="ri-check-line text-success me-2"></i>Keep face within frame</li>
+              </ul>
+
+              <div id="recognitionResult" style="display: none;">
+                <h6>Recognition Result:</h6>
+                <div id="resultContent"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Edit Violation Modal -->
-  <div class="modal fade" id="editViolationModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="ri-edit-line me-2"></i>Edit Violation
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="modal fade" id="editViolationModal" tabindex="-1" aria-labelledby="editViolationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editViolationModalLabel">Edit Violation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editViolationForm" method="POST">
+                <div class="modal-body">
+                    <div id="editViolationModalBody">
+                        <!-- Content will be loaded here dynamically -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Violation</button>
+                </div>
+            </form>
         </div>
-        <form id="editViolationForm" method="POST" enctype="multipart/form-data">
-          @csrf
-          @method('PUT')
-          <div class="modal-body" id="editViolationModalBody">
-            <!-- Edit form will be loaded here -->
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="hideModal('editViolationModal')">Cancel</button>
-            <button type="submit" class="btn btn-primary">
-              <i class="ri-save-line me-2"></i>Update Violation
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
-  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const severitySelect = document.getElementById('violationSeverity');
+  const majorCategoryWrapper = document.getElementById('majorCategoryWrapper');
+
+  severitySelect.addEventListener('change', () => {
+    majorCategoryWrapper.classList.toggle('d-none', severitySelect.value !== 'major');
+  });
+});
+
+function addWitnessField() {
+  const container = document.getElementById('witnessesContainer');
+  const div = document.createElement('div');
+  div.className = 'input-group mb-2';
+  div.innerHTML = `
+    <input type="text" class="form-control" name="witnesses[]" placeholder="Witness name">
+    <button type="button" class="btn btn-outline-danger" onclick="removeWitnessField(this)">
+      <i class="ri-delete-bin-line"></i>
+    </button>
+  `;
+  container.appendChild(div);
+}
+
+function removeWitnessField(button) {
+  button.closest('.input-group').remove();
+}
+</script>
 
 </x-guidance-layout>

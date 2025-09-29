@@ -251,7 +251,7 @@ class GuidanceDisciplineController extends Controller
             'pending' => Violation::where('status', 'pending')->count(),
             'investigating' => Violation::where('status', 'investigating')->count(),
             'resolved' => Violation::where('status', 'resolved')->count(),
-            'severe' => Violation::where('severity', 'severe')->count(),
+            'severe' => Violation::where('severity', 'major')->count(),
         ];
 
         return view('guidancediscipline.student-violations', compact('violations', 'students', 'stats'));
@@ -311,9 +311,10 @@ public function storeViolation(Request $request)
         // Define validation rules
         $validationRules = [
             'student_id' => 'required|exists:students,id',
+            'violation_type' => 'required|string|in:uniform,technology,appearance,behavior,academic,other',
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'severity' => 'required|in:minor,major,severe',
+            'severity' => 'required|in:minor,major',
             'major_category' => 'nullable|string|max:255',
             'violation_date' => 'required|date',
             'violation_time' => 'nullable|date_format:H:i',
@@ -337,7 +338,6 @@ public function storeViolation(Request $request)
 
         // Add fields that are not from the form
         $validatedData['reported_by'] = $guidanceRecord->id;
-        $validatedData['violation_type'] = 'behavioral'; // Default type
         
         \Log::info('Added system fields:', [
             'reported_by' => $validatedData['reported_by'],
@@ -495,9 +495,11 @@ public function storeViolation(Request $request)
             ->orderBy('last_name', 'asc')
             ->get();
 
+        // Always allow changing the student
         return response()->json([
             'violation' => $violation->load(['student', 'reportedBy', 'resolvedBy']),
-            'students' => $students
+            'students' => $students,
+            'can_change_student' => true
         ]);
     }
 
@@ -509,10 +511,10 @@ public function storeViolation(Request $request)
         try {
             $validatedData = $request->validate([
                 'student_id' => 'required|exists:students,id',
-                'violation_type' => 'required|string|in:academic,behavioral,attendance,disciplinary,other',
+                'violation_type' => 'required|string|in:uniform,technology,appearance,behavior,academic,other',
                 'title' => 'required|string|max:255',
                 'description' => 'required|string',
-                'severity' => 'required|in:minor,major,severe',
+                'severity' => 'required|in:minor,major',
                 'major_category' => 'nullable|string|max:255',
                 'violation_date' => 'required|date',
                 'violation_time' => 'nullable|date_format:H:i',
@@ -525,9 +527,7 @@ public function storeViolation(Request $request)
                 'resolution' => 'nullable|string',
                 'disciplinary_action' => 'nullable|string',
                 'parent_notified' => 'nullable|boolean',
-                'parent_notification_date' => 'nullable|date',
                 'notes' => 'nullable|string',
-                'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             if ($request->wantsJson() || $request->ajax()) {
