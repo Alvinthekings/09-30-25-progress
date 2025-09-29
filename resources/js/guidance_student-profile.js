@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-     captureBtn.addEventListener('click', async function () {
+captureBtn.addEventListener('click', async function () {
   const resultBox = document.getElementById('recognitionResult');
   const resultContent = document.getElementById('resultContent');
   resultBox.style.display = 'block';

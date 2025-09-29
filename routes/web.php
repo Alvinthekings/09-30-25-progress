@@ -18,6 +18,9 @@ use App\Http\Controllers\AdminEnrollmentController;
 // use Spatie\Permission\Middlewares\RoleMiddleware;
 // use Spatie\Permission\Middlewares\PermissionMiddleware;
 // use App\Http\Controllers\AdminGeneratorController;
+use App\Http\Controllers\FaceRegistrationController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log; 
 
 
 
@@ -310,11 +313,9 @@ Route::prefix('guidance')->name('guidance.')->group(function () {
 
             // Facial Recognition Route (moved outside guidance prefix)
 Route::post('/recognize-face', function (Request $request) {
-    // Start output buffering to prevent extra output
     ob_start();
-
+    
     try {
-        // Validate input
         $request->validate([
             'face_encoding' => 'required|array',
             'threshold'     => 'nullable|numeric|min:0.1|max:1.0',
@@ -323,6 +324,12 @@ Route::post('/recognize-face', function (Request $request) {
         $threshold = $request->input('threshold', 0.35);
         $inputEncoding = $request->face_encoding;
 
+        // Debug: Log the input
+        Log::info('Face recognition attempt', [
+            'encoding_length' => count($inputEncoding),
+            'threshold' => $threshold
+        ]);
+
         // Normalize input encoding
         $norm = sqrt(array_sum(array_map(fn($v) => $v * $v, $inputEncoding)));
         if ($norm == 0) {
@@ -330,9 +337,13 @@ Route::post('/recognize-face', function (Request $request) {
         }
         $inputEncoding = array_map(fn($v) => $v / $norm, $inputEncoding);
 
-        $registeredFaces = FaceRegistration::with('student')
+        // Check registered faces
+        $registeredFaces = \App\Models\FaceRegistration::with('student')
             ->whereNotNull('face_encoding')
             ->get();
+
+        // Debug: Log how many faces are registered
+        Log::info('Registered faces count: ' . $registeredFaces->count());
 
         $bestMatch = null;
         $bestScore = -1;
@@ -340,10 +351,19 @@ Route::post('/recognize-face', function (Request $request) {
 
         foreach ($registeredFaces as $face) {
             $storedEncoding = json_decode($face->face_encoding, true);
-            if (!is_array($storedEncoding) || empty($storedEncoding)) continue;
+            
+            // Debug each face
+            if (!is_array($storedEncoding) || empty($storedEncoding)) {
+                Log::warning('Invalid encoding for face ID: ' . $face->id);
+                continue;
+            }
 
             $normStored = sqrt(array_sum(array_map(fn($v) => $v * $v, $storedEncoding)));
-            if ($normStored == 0) continue;
+            if ($normStored == 0) {
+                Log::warning('Zero vector for face ID: ' . $face->id);
+                continue;
+            }
+            
             $storedEncoding = array_map(fn($v) => $v / $normStored, $storedEncoding);
 
             $dot = array_sum(array_map(fn($a, $b) => $a * $b, $inputEncoding, $storedEncoding));
@@ -354,34 +374,31 @@ Route::post('/recognize-face', function (Request $request) {
                 'similarity'   => $dot,
             ];
 
-            if ($dot > $bestScore && $dot >= $threshold) {
+            if ($dot > $bestScore) {
                 $bestScore = $dot;
                 $bestMatch = $face;
             }
         }
 
-        // Clean any unexpected output before returning JSON
+        // Debug: Log the best score found
+        Log::info('Best similarity score: ' . $bestScore);
+
         ob_end_clean();
 
         return response()->json([
             'success'    => true,
-            'recognized' => (bool) $bestMatch,
+            'recognized' => (bool) $bestMatch && $bestScore >= $threshold,
             'confidence' => $bestScore,
-            'student'    => $bestMatch?->student?->only(['id','first_name','last_name']),
-            'face'       => $bestMatch?->only(['id','student_id']),
+            'student'    => $bestMatch && $bestScore >= $threshold ? $bestMatch->student->only(['id','first_name','last_name']) : null,
+            'face'       => $bestMatch && $bestScore >= $threshold ? $bestMatch->only(['id','student_id']) : null,
             'debug'      => $debug,
-            'message'    => $bestMatch ? 'Face recognized' : 'No matching face found',
+            'message'    => $bestMatch && $bestScore >= $threshold ? 'Face recognized' : 'No matching face found',
+            'threshold_met' => $bestMatch ? ($bestScore >= $threshold) : false,
         ]);
-    } catch (\Illuminate\Validation\ValidationException $e) {
-        ob_end_clean();
-        return response()->json([
-            'success' => false,
-            'message' => 'Validation failed',
-            'errors'  => $e->errors(),
-        ], 422);
+        
     } catch (\Throwable $e) {
         ob_end_clean();
-        Log::error('Face recognition error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        Log::error('Face recognition error: ' . $e->getMessage());
         return response()->json([
             'success' => false,
             'message' => 'Server error during face recognition',
