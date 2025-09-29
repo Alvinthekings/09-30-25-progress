@@ -255,79 +255,228 @@ class GuidanceDisciplineController extends Controller
         ];
 
         return view('guidancediscipline.student-violations', compact('violations', 'students', 'stats'));
+    } 
+    /**
+ * Store a new violation
+ */
+public function storeViolation(Request $request)
+{
+    \Log::info('=== VIOLATION SUBMISSION STARTED ===');
+    \Log::info('Request method:', ['method' => $request->method()]);
+    \Log::info('Request headers:', $request->headers->all());
+    \Log::info('Request data:', $request->all());
+    \Log::info('Files:', $request->file() ? array_keys($request->file()) : ['no files']);
+
+    // Check authentication explicitly to return JSON instead of HTML redirect
+    if (!Auth::check()) {
+        \Log::warning('Unauthenticated violation submission attempt');
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated. Please log in.'
+        ], 401);
     }
 
-    /**
-     * Store a new violation
-     */
-    public function storeViolation(Request $request)
-    {
-        $validatedData = $request->validate([
+    try {
+        // Check if we're receiving JSON data from the form
+        if ($request->has('violation_data')) {
+            \Log::info('Found violation_data in request');
+            $violationData = json_decode($request->violation_data, true);
+            $request->merge($violationData);
+            \Log::info('Merged violation_data:', $violationData);
+        }
+
+        // Get current user and check permissions
+        $user = Auth::user();
+        \Log::info('Current user:', [
+            'user_id' => $user->id,
+            'user_name' => $user->first_name . ' ' . $user->last_name,
+            'user_type' => $user->user_type,
+            'department' => $user->department
+        ]);
+
+        // Check if user has guidance discipline record
+        $guidanceRecord = $user->guidanceDiscipline;
+        \Log::info('Guidance discipline record:', $guidanceRecord ? ['id' => $guidanceRecord->id] : ['not_found']);
+
+        if (!$guidanceRecord) {
+            \Log::warning('User does not have guidance discipline record');
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to report violations. No guidance discipline record found.'
+            ], 403);
+        }
+
+        \Log::info('Starting validation...');
+
+        // Define validation rules
+        $validationRules = [
             'student_id' => 'required|exists:students,id',
-            'violation_type' => 'required|string|in:late,uniform,misconduct,academic,other',
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'severity' => 'required|in:minor,major,severe',
+            'major_category' => 'nullable|string|max:255',
             'violation_date' => 'required|date',
-            'violation_time' => 'nullable',
+            'violation_time' => 'nullable|date_format:H:i',
             'location' => 'nullable|string|max:255',
-            'witnesses' => 'nullable|string',
+            'witnesses' => 'nullable|array',
+            'witnesses.*' => 'nullable|string|max:255',
             'evidence' => 'nullable|string',
-            'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
+            'student_statement' => 'nullable|string',
+            'status' => 'required|in:pending,investigating,resolved,dismissed',
+            'parent_notified' => 'nullable|boolean',
+            'parent_notification_date' => 'nullable|date',
+            'notes' => 'nullable|string',
+            'attachments' => 'required|array|min:1',
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120', // 5MB max
+        ];
+
+        \Log::info('Validation rules:', $validationRules);
+
+        $validatedData = $request->validate($validationRules);
+        \Log::info('Validation passed:', $validatedData);
+
+        // Add fields that are not from the form
+        $validatedData['reported_by'] = $guidanceRecord->id;
+        $validatedData['violation_type'] = 'behavioral'; // Default type
+        
+        \Log::info('Added system fields:', [
+            'reported_by' => $validatedData['reported_by'],
+            'violation_type' => $validatedData['violation_type']
         ]);
 
-        // Get current user's guidance discipline record
-        $guidanceRecord = Auth::user()->guidanceDiscipline;
-        if (!$guidanceRecord) {
-            return back()->withErrors(['error' => 'You do not have permission to report violations.']);
-        }
-        
         // Process violation time to ensure proper format
         if (isset($validatedData['violation_time']) && $validatedData['violation_time']) {
             $time = $validatedData['violation_time'];
+            \Log::info('Processing violation time:', ['original_time' => $time]);
+            
             // Handle various time formats and convert to H:i:s
             if (preg_match('/^(\d{1,2}):(\d{2})$/', $time)) {
                 // Already in H:i format, add seconds
                 $validatedData['violation_time'] = $time . ':00';
+                \Log::info('Time formatted to H:i:s:', ['formatted_time' => $validatedData['violation_time']]);
             } elseif (preg_match('/^(\d{1,2}):(\d{2}):(\d{2})$/', $time)) {
                 // Already in H:i:s format - keep as is
-                $validatedData['violation_time'] = $time;
+                \Log::info('Time already in H:i:s format');
+            } else {
+                \Log::warning('Unexpected time format:', ['time' => $time]);
             }
         }
 
-        // Process witnesses if provided
-        if ($request->witnesses) {
-            $witnesses = array_filter(explode("\n", $request->witnesses));
-            $validatedData['witnesses'] = $witnesses;
+        // Process witnesses array - filter out empty values
+        if (isset($validatedData['witnesses'])) {
+            \Log::info('Processing witnesses:', ['original_witnesses' => $validatedData['witnesses']]);
+            
+            $validatedData['witnesses'] = array_filter($validatedData['witnesses'], function($witness) {
+                return !empty(trim($witness));
+            });
+            
+            // If empty after filtering, set to null
+            if (empty($validatedData['witnesses'])) {
+                $validatedData['witnesses'] = null;
+                \Log::info('Witnesses filtered to null');
+            } else {
+                \Log::info('Witnesses after filtering:', $validatedData['witnesses']);
+            }
         }
 
         // Handle file uploads
         if ($request->hasFile('attachments')) {
+            \Log::info('Processing file attachments');
             $attachments = [];
             foreach ($request->file('attachments') as $file) {
                 $path = $file->store('violations', 'public');
                 $attachments[] = $path;
+                \Log::info('File stored:', ['path' => $path, 'original_name' => $file->getClientOriginalName()]);
             }
             $validatedData['attachments'] = $attachments;
+        } else {
+            \Log::info('No file attachments found');
         }
 
-        $validatedData['reported_by'] = $guidanceRecord->id;
+        // Set default status if not provided
+        if (!isset($validatedData['status'])) {
+            $validatedData['status'] = 'pending';
+            \Log::info('Set default status:', ['status' => $validatedData['status']]);
+        }
 
+        \Log::info('Final data before creating violation:', $validatedData);
+
+        // Create the violation
         $violation = Violation::create($validatedData);
+        \Log::info('Violation created successfully:', ['violation_id' => $violation->id]);
+
+        // Load relationships for response
+        $violation->load(['student', 'reportedBy']);
+
+        \Log::info('=== VIOLATION SUBMISSION COMPLETED SUCCESSFULLY ===');
 
         // Handle AJAX requests
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Violation reported successfully.',
-                'violation' => $violation->load(['student', 'reportedBy'])
+                'message' => 'Violation recorded successfully.',
+                'violation' => $violation
             ]);
         }
 
         return redirect()->route('guidance.violations.index')
             ->with('success', 'Violation reported successfully.');
-    }
 
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('VALIDATION FAILED:', ['errors' => $e->errors(), 'request_data' => $request->all()]);
+        
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed. Please check the form fields.',
+                'errors' => $e->errors()
+            ], 422);
+        }
+        
+        return back()->withErrors($e->errors())->withInput();
+
+    } catch (\Illuminate\Database\QueryException $e) {
+        \Log::error('DATABASE ERROR:', [
+            'message' => $e->getMessage(),
+            'sql' => $e->getSql(),
+            'bindings' => $e->getBindings(),
+            'request_data' => $request->all()
+        ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Database error occurred while saving the violation.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+
+        return back()->withErrors(['error' => 'Database error occurred.'])->withInput();
+
+    } catch (\Exception $e) {
+        \Log::error('GENERAL ERROR:', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString(),
+            'request_data' => $request->all()
+        ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred: ' . ($e->getMessage() ?: 'Unknown error'),
+                'error' => config('app.debug') ? [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ] : 'Internal server error'
+            ], 500);
+        }
+
+        return back()->withErrors(['error' => 'An unexpected error occurred.'])->withInput();
+    }
+}
     /**
      * Show violation details
      */
@@ -357,27 +506,28 @@ class GuidanceDisciplineController extends Controller
      */
     public function updateViolation(Request $request, Violation $violation)
     {
-
-        
         try {
             $validatedData = $request->validate([
                 'student_id' => 'required|exists:students,id',
-                'violation_type' => 'required|string|in:late,uniform,misconduct,academic,other',
+                'violation_type' => 'required|string|in:academic,behavioral,attendance,disciplinary,other',
                 'title' => 'required|string|max:255',
                 'description' => 'required|string',
                 'severity' => 'required|in:minor,major,severe',
+                'major_category' => 'nullable|string|max:255',
                 'violation_date' => 'required|date',
-                'violation_time' => 'nullable',
+                'violation_time' => 'nullable|date_format:H:i',
                 'location' => 'nullable|string|max:255',
-                'witnesses' => 'nullable',
+                'witnesses' => 'nullable|array',
+                'witnesses.*' => 'nullable|string|max:255',
                 'evidence' => 'nullable|string',
+                'student_statement' => 'nullable|string',
                 'status' => 'required|in:pending,investigating,resolved,dismissed',
                 'resolution' => 'nullable|string',
-                'student_statement' => 'nullable|string',
                 'disciplinary_action' => 'nullable|string',
                 'parent_notified' => 'nullable|boolean',
+                'parent_notification_date' => 'nullable|date',
                 'notes' => 'nullable|string',
-                'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
+                'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             if ($request->wantsJson() || $request->ajax()) {
@@ -403,10 +553,16 @@ class GuidanceDisciplineController extends Controller
             }
         }
 
-        // Process witnesses if provided
-        if ($request->witnesses) {
-            $witnesses = array_filter(explode("\n", $request->witnesses));
-            $validatedData['witnesses'] = $witnesses;
+        // Process witnesses array - filter out empty values
+        if (isset($validatedData['witnesses'])) {
+            $validatedData['witnesses'] = array_filter($validatedData['witnesses'], function($witness) {
+                return !empty(trim($witness));
+            });
+            
+            // If empty after filtering, set to null
+            if (empty($validatedData['witnesses'])) {
+                $validatedData['witnesses'] = null;
+            }
         }
 
         // Handle file uploads
@@ -433,6 +589,11 @@ class GuidanceDisciplineController extends Controller
                 }
                 $validatedData['resolved_at'] = now();
             }
+        }
+
+        // If parent notification is being set and date is not provided, set it to current date
+        if (isset($validatedData['parent_notified']) && $validatedData['parent_notified'] && !isset($validatedData['parent_notification_date'])) {
+            $validatedData['parent_notification_date'] = now()->toDateString();
         }
 
         $violation->update($validatedData);
