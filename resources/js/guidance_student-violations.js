@@ -92,105 +92,194 @@ window.editViolation = function(violationId) {
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
                 <div class="row">
-                    <div class="col-md-6">
-                        <h6>Student Information</h6>
-                        <table class="table table-sm">
-                            <tbody>
-                                <tr><td><strong>Name:</strong></td><td>
-                                    <select class="form-select form-select-sm" id="edit_student_id" name="student_id" required ${studentSelectDisabled}>
-                                        ${students.length > 0 ? students.map(student => `
-                                            <option value="${student.id}" ${student.id == (violation.student ? violation.student.id : violation.student_id) ? 'selected' : ''}>
-                                                ${student.first_name} ${student.last_name} (${student.student_id || 'No ID'})
-                                            </option>
-                                        `).join('') : '<option value="">No students available</option>'}
-                                    </select>
-                                    ${studentSelectHelp}
-                                </td></tr>
-                                <tr><td><strong>Student ID:</strong></td><td>${violation.student_id || 'N/A'}</td></tr>
-                                <tr><td><strong>Grade Level:</strong></td><td>${violation.grade_level || 'N/A'}</td></tr>
-                                <tr><td><strong>Section:</strong></td><td>${violation.section || 'N/A'}</td></tr>
-                            </tbody>
-                        </table>
+                    <!-- Left Column: Student Info & Basic Violation Details -->
+                    <div class="col-lg-6">
+                        <h6 class="mb-3">Student Information</h6>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">Student Name</label>
+                                <select class="form-select form-select-sm" id="edit_student_id" name="student_id" required ${studentSelectDisabled}>
+                                    ${students.length > 0 ? students.map(student => `
+                                        <option value="${student.id}" ${student.id == (violation.student ? violation.student.id : violation.student_id) ? 'selected' : ''}>
+                                            ${student.first_name} ${student.last_name} (${student.student_id || 'No ID'})
+                                        </option>
+                                    `).join('') : '<option value="">No students available</option>'}
+                                </select>
+                                ${studentSelectHelp}
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Student ID</label>
+                                <input type="text" class="form-control form-control-sm" value="${violation.student_id || 'N/A'}" readonly>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label fw-bold small">Grade</label>
+                                <input type="text" class="form-control form-control-sm" value="${violation.grade_level || 'N/A'}" readonly>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label fw-bold small">Section</label>
+                                <input type="text" class="form-control form-control-sm" value="${violation.section || 'N/A'}" readonly>
+                            </div>
+                        </div>
 
-                        <h6 class="mt-3">Violation Details</h6>
-                        <table class="table table-sm">
-                            <tbody>
-                                <tr><td><strong>Title:</strong></td><td>
-                                    <input type="text" class="form-control form-control-sm" id="edit_title" name="title" value="${violation.title || ''}" required>
-                                </td></tr>
-                                <tr><td><strong>Description:</strong></td><td>
-                                    <textarea class="form-control form-control-sm" id="edit_description" name="description" rows="3" required>${violation.description || ''}</textarea>
-                                </td></tr>
-                                <tr><td><strong>Type:</strong></td><td>
-                                    <select class="form-select form-select-sm" id="edit_violation_type" name="violation_type" required>
-                                        <option value="uniform" ${violation.violation_type === 'uniform' ? 'selected' : ''}>Uniform</option>
-                                        <option value="technology" ${violation.violation_type === 'technology' ? 'selected' : ''}>Technology</option>
-                                        <option value="appearance" ${violation.violation_type === 'appearance' ? 'selected' : ''}>Appearance</option>
-                                        <option value="behavior" ${violation.violation_type === 'behavior' ? 'selected' : ''}>Behavior</option>
-                                        <option value="academic" ${violation.violation_type === 'academic' ? 'selected' : ''}>Academic</option>
-                                        <option value="other" ${violation.violation_type === 'other' ? 'selected' : ''}>Other</option>
-                                    </select>
-                                </td></tr>
-                                <tr><td><strong>Severity:</strong></td><td>
-                                    <select class="form-select form-select-sm" id="edit_severity" name="severity" required>
-                                        <option value="minor" ${violation.severity === 'minor' ? 'selected' : ''}>Minor Offense</option>
-                                        <option value="major" ${violation.severity === 'major' ? 'selected' : ''}>Major Offense</option>
-                                    </select>
-                                </td></tr>
-                                <tr><td><strong>Status:</strong></td><td>
-                                    <select class="form-select form-select-sm" id="edit_status" name="status" required>
-                                        <option value="pending" ${violation.status === 'pending' ? 'selected' : ''}>Pending</option>
-                                        <option value="investigating" ${violation.status === 'investigating' ? 'selected' : ''}>Investigating</option>
-                                        <option value="resolved" ${violation.status === 'resolved' ? 'selected' : ''}>Resolved</option>
-                                        <option value="dismissed" ${violation.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
-                                    </select>
-                                </td></tr>
-                                <tr><td><strong>Date:</strong></td><td>
-                                    <input type="date" class="form-control form-control-sm" id="edit_violation_date" name="violation_date" value="${violation.violation_date ? (violation.violation_date.includes('T') ? violation.violation_date.split('T')[0] : violation.violation_date) : ''}" required>
-                                </td></tr>
-                                <tr><td><strong>Time:</strong></td><td>
-                                    <input type="time" class="form-control form-control-sm" id="edit_violation_time" name="violation_time" value="${violation.violation_time ? (violation.violation_time.length > 5 ? violation.violation_time.substring(0, 5) : violation.violation_time) : ''}">
-                                </td></tr>
-                                <tr><td><strong>Location:</strong></td><td>
-                                    <input type="text" class="form-control form-control-sm" id="edit_location" name="location" value="${violation.location || ''}">
-                                </td></tr>
-                            </tbody>
-                        </table>
+                        <h6 class="mt-3 mb-3">Violation Details</h6>
+                        <div class="mb-2">
+                            <label class="form-label fw-bold small">Title</label>
+                            <input type="text" class="form-control form-control-sm" id="edit_title" name="title" value="${violation.title || ''}" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label fw-bold small">Description</label>
+                            <textarea class="form-control form-control-sm" id="edit_description" name="description" rows="2" required>${violation.description || ''}</textarea>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Type</label>
+                                <select class="form-select form-select-sm" id="edit_violation_type" name="violation_type" required>
+                                    <option value="uniform" ${violation.violation_type === 'uniform' ? 'selected' : ''}>Uniform</option>
+                                    <option value="technology" ${violation.violation_type === 'technology' ? 'selected' : ''}>Technology</option>
+                                    <option value="appearance" ${violation.violation_type === 'appearance' ? 'selected' : ''}>Appearance</option>
+                                    <option value="behavior" ${violation.violation_type === 'behavior' ? 'selected' : ''}>Behavior</option>
+                                    <option value="academic" ${violation.violation_type === 'academic' ? 'selected' : ''}>Academic</option>
+                                    <option value="other" ${violation.violation_type === 'other' ? 'selected' : ''}>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Severity</label>
+                                <select class="form-select form-select-sm" id="edit_severity" name="severity" required>
+                                    <option value="minor" ${violation.severity === 'minor' ? 'selected' : ''}>Minor</option>
+                                    <option value="major" ${violation.severity === 'major' ? 'selected' : ''}>Major</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2" id="edit_major_category_wrapper" style="display: ${violation.severity === 'major' ? 'block' : 'none'};">
+                            <label class="form-label fw-bold small">Major Category</label>
+                            <select class="form-select form-select-sm" id="edit_major_category" name="major_category">
+                                <option value="">-- Select Category --</option>
+                                <option value="Category 1" ${violation.major_category === 'Category 1' ? 'selected' : ''}>Category 1</option>
+                                <option value="Category 2" ${violation.major_category === 'Category 2' ? 'selected' : ''}>Category 2</option>
+                                <option value="Category 3" ${violation.major_category === 'Category 3' ? 'selected' : ''}>Category 3</option>
+                            </select>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Status</label>
+                                <select class="form-select form-select-sm" id="edit_status" name="status" required>
+                                    <option value="pending" ${violation.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="investigating" ${violation.status === 'investigating' ? 'selected' : ''}>Investigating</option>
+                                    <option value="resolved" ${violation.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                                    <option value="dismissed" ${violation.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Location</label>
+                                <input type="text" class="form-control form-control-sm" id="edit_location" name="location" value="${violation.location || ''}">
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Date</label>
+                                <input type="date" class="form-control form-control-sm" id="edit_violation_date" name="violation_date" value="${violation.violation_date ? (violation.violation_date.includes('T') ? violation.violation_date.split('T')[0] : violation.violation_date) : ''}" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Time</label>
+                                <input type="time" class="form-control form-control-sm" id="edit_violation_time" name="violation_time" value="${violation.violation_time ? (violation.violation_time.length > 5 ? violation.violation_time.substring(0, 5) : violation.violation_time) : ''}">
+                            </div>
+                        </div>
+                    </div>
 
-                        <h6 class="mt-3">Investigation Details</h6>
-                        <table class="table table-sm">
-                            <tbody>
-                                <tr><td><strong>Witnesses:</strong></td><td>
-                                    <textarea class="form-control form-control-sm" id="edit_witnesses" name="witnesses" rows="2">${violation.witnesses ? (Array.isArray(violation.witnesses) ? violation.witnesses.join('\n') : violation.witnesses) : ''}</textarea>
-                                </td></tr>
-                                <tr><td><strong>Student Statement:</strong></td><td>
-                                    <textarea class="form-control form-control-sm" id="edit_student_statement" name="student_statement" rows="2">${violation.student_statement || ''}</textarea>
-                                </td></tr>
-                            </tbody>
-                        </table>
+                    <!-- Right Column: Investigation & Resolution Details -->
+                    <div class="col-lg-6">
+                        <h6 class="mb-3">Investigation Details</h6>
+                        <div class="mb-2">
+                            <label class="form-label fw-bold small">Witnesses</label>
+                            <div id="edit_witnesses_container">
+                                ${(violation.witnesses && Array.isArray(violation.witnesses) && violation.witnesses.length > 0) ? violation.witnesses.map(witness => `
+                                    <div class="input-group input-group-sm mb-1">
+                                        <input type="text" class="form-control" name="witnesses[]" value="${witness}" placeholder="Witness name">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeWitnessField(this)">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </div>
+                                `).join('') : `
+                                    <div class="input-group input-group-sm mb-1">
+                                        <input type="text" class="form-control" name="witnesses[]" placeholder="Witness name">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addWitnessField()">
+                                            <i class="ri-add-line"></i>
+                                        </button>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Student Statement</label>
+                            <textarea class="form-control form-control-sm" id="edit_student_statement" name="student_statement" rows="3">${violation.student_statement || ''}</textarea>
+                        </div>
 
-                        <h6 class="mt-3">Resolution Details</h6>
-                        <table class="table table-sm">
-                            <tbody>
-                                <tr><td><strong>Resolution:</strong></td><td>
-                                    <textarea class="form-control form-control-sm" id="edit_resolution" name="resolution" rows="2">${violation.resolution || ''}</textarea>
-                                </td></tr>
-                                <tr><td><strong>Disciplinary Action:</strong></td><td>
-                                    <textarea class="form-control form-control-sm" id="edit_disciplinary_action" name="disciplinary_action" rows="2">${violation.disciplinary_action || ''}</textarea>
-                                </td></tr>
-                                <tr><td><strong>Parent/Guardian Notified:</strong></td><td>
-                                    <input class="form-check-input" type="checkbox" id="edit_parent_notified" name="parent_notified" value="1" ${violation.parent_notified ? 'checked' : ''}>
-                                </td></tr>
-                                <tr><td><strong>Additional Notes:</strong></td><td>
-                                    <textarea class="form-control form-control-sm" id="edit_notes" name="notes" rows="2">${violation.notes || ''}</textarea>
-                                </td></tr>
-                            </tbody>
-                        </table>
+                        <h6 class="mt-3 mb-3">Resolution Details</h6>
+                        <div class="mb-2" id="edit_resolution_wrapper" style="display: ${(violation.status === 'resolved' || violation.status === 'dismissed') ? 'block' : 'none'};">
+                            <label class="form-label fw-bold small">Resolution</label>
+                            <textarea class="form-control form-control-sm" id="edit_resolution" name="resolution" rows="2">${violation.resolution || ''}</textarea>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label fw-bold small">Disciplinary Action</label>
+                            <textarea class="form-control form-control-sm" id="edit_disciplinary_action" name="disciplinary_action" rows="2">${violation.disciplinary_action || ''}</textarea>
+                        </div>
+                        <div class="mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_parent_notified" name="parent_notified" value="1" ${violation.parent_notified ? 'checked' : ''}>
+                                <label class="form-check-label fw-bold small" for="edit_parent_notified">
+                                    Parent/Guardian Notified
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Additional Notes</label>
+                            <textarea class="form-control form-control-sm" id="edit_notes" name="notes" rows="3">${violation.notes || ''}</textarea>
+                        </div>
                     </div>
                 </div>
             `;
 
             console.log('✅ Modal populated successfully');
+
+            // Add event listeners for dynamic form behavior
+            const editSeveritySelect = document.getElementById('edit_severity');
+            const editMajorCategoryWrapper = document.getElementById('edit_major_category_wrapper');
+            const editStatusSelect = document.getElementById('edit_status');
+            const editResolutionWrapper = document.getElementById('edit_resolution_wrapper');
+
+            if (editSeveritySelect) {
+                editSeveritySelect.addEventListener('change', function() {
+                    if (editMajorCategoryWrapper) {
+                        editMajorCategoryWrapper.style.display = this.value === 'major' ? 'block' : 'none';
+                    }
+                });
+            }
+
+            if (editStatusSelect) {
+                editStatusSelect.addEventListener('change', function() {
+                    if (editResolutionWrapper) {
+                        editResolutionWrapper.style.display = (this.value === 'resolved' || this.value === 'dismissed') ? 'block' : 'none';
+                    }
+                });
+            }
+
+            // Add witness field management functions
+            window.addWitnessField = function() {
+                const container = document.getElementById('edit_witnesses_container');
+                const newInput = document.createElement('div');
+                newInput.className = 'input-group mb-2';
+                newInput.innerHTML = `
+                    <input type="text" class="form-control" name="witnesses[]" placeholder="Witness name">
+                    <button type="button" class="btn btn-outline-danger" onclick="removeWitnessField(this)">
+                        <i class="ri-delete-bin-line"></i>
+                    </button>
+                `;
+                container.appendChild(newInput);
+            };
+
+            window.removeWitnessField = function(button) {
+                button.closest('.input-group').remove();
+            };
 
             // Add form submission handler
             const currentViolationId = violationId;
