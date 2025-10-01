@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 // Check if required elements exist
                 const violationForm = document.getElementById('recordViolationForm');
-                const studentIdEl = document.getElementById('violationStudentSelect');
+                const studentIdEl = document.getElementById('violationStudentId');
                 const severityEl = document.getElementById('violationSeverity');
                 const descriptionEl = document.getElementById('violationDescription');
                 const dateEl = document.getElementById('violationDate');
@@ -1579,7 +1579,7 @@ window.removeWitnessField = function(button) {
 }
 
 window.openViolationModal = function(student) {
-    document.getElementById('violationStudentSelect').value = student.id;
+    document.getElementById('violationStudentId').value = student.id;
 
     // Reset form
     document.getElementById('violationSeverity').value = '';
@@ -1599,9 +1599,7 @@ window.openViolationModal = function(student) {
 // Function to show incident form for major offenses
 function showIncidentForm() {
     // Get violation data
-    const studentSelect = document.getElementById('violationStudentSelect');
-    const selectedOption = studentSelect ? studentSelect.options[studentSelect.selectedIndex] : null;
-    const reportedStudent = selectedOption ? selectedOption.text : '';
+    const reportedStudent = document.getElementById('violationStudentSearch').value || '';
 
     const violationTitle = getViolationTitle();
     const violationDescription = document.getElementById('violationDescription').value;
