@@ -1,6 +1,19 @@
 // Global functions for CRUD operations (must be in global scope)
 console.log('Defining global functions...');
 
+// Global debounce function
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 window.editViolation = function(violationId) {
     console.log('🚀 editViolation called with id:', violationId);
 
@@ -276,9 +289,27 @@ window.editViolation = function(violationId) {
                 e.preventDefault();
                 console.log('📤 Form submission started');
 
+                // Validate required fields
+                const descriptionValue = form.description.value.trim();
+                if (!descriptionValue) {
+                    alert('Description is required.');
+                    return;
+                }
+
+                // Collect and filter witnesses (remove empty ones)
+                const witnessInputs = form.querySelectorAll('input[name="witnesses[]"]');
+                const witnesses = Array.from(witnessInputs).map(input => input.value.trim()).filter(value => value.length > 0);
+
                 const formData = new FormData(form);
                 const submitBtn = form.querySelector('button[type="submit"]');
                 const originalText = submitBtn.innerHTML;
+
+                // Set trimmed description
+                formData.set('description', descriptionValue);
+
+                // Remove existing witnesses and add filtered ones
+                formData.delete('witnesses[]');
+                witnesses.forEach(witness => formData.append('witnesses[]', witness));
 
                 // Add CSRF token and method spoofing
                 formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
@@ -559,7 +590,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-            // Handle title selection and custom offense input
+    // Handle title selection and custom offense input
     if (violationTitleSelect) {
         violationTitleSelect.addEventListener('change', function() {
             const selectedTitle = this.value;
@@ -572,9 +603,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (mapping.severity === 'major') {
                     majorCategoryWrapper.classList.remove('d-none');
                     majorCategorySelect.value = mapping.category;
+
+                    // For major violations, disable student search and show incident form
+                    const studentSearchInput = document.getElementById('violationStudentSearch');
+                    if (studentSearchInput) {
+                        studentSearchInput.disabled = true;
+                        studentSearchInput.placeholder = "Student name disabled for major violations";
+                    }
+
+                    // Hide the record violation modal and show incident form
+                    window.ModalManager.hide('recordViolationModal');
+                    showIncidentForm();
                 } else {
                     majorCategoryWrapper.classList.add('d-none');
                     majorCategorySelect.value = '';
+
+                    // Re-enable student search for minor violations
+                    const studentSearchInput = document.getElementById('violationStudentSearch');
+                    if (studentSearchInput) {
+                        studentSearchInput.disabled = false;
+                        studentSearchInput.placeholder = "Type student name or ID...";
+                    }
                 }
 
                 // Re-select the current title
@@ -667,13 +716,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const violationForm = document.getElementById('recordViolationForm');
     if (violationForm) {
         violationForm.addEventListener('submit', async function(e) {
-            const severityEl = document.getElementById('violationSeverity');
-            if (severityEl && severityEl.value === 'major') {
-                e.preventDefault();
-                showIncidentForm();
-                return;
-            }
-
             e.preventDefault();
 
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -732,26 +774,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Response status:', response.status);
 
                 if (!response.ok) {
-                    const responseText = await response.text();
-                    console.log('Raw response:', responseText);
-                    if (responseText.startsWith('<')) {
-                        throw new Error('Authentication required. Please log in again.');
-                    } else {
-                        throw new Error(`Server error: ${response.status}. ${responseText.substring(0, 200)}`);
+                    const errorData = await response.json();
+                    let errorMsg = 'Submission failed with status: ' + response.status;
+                    if (errorData.errors) {
+                        errorMsg += '\n\nValidation errors:';
+                        Object.keys(errorData.errors).forEach(field => {
+                            errorMsg += '\n- ' + field + ': ' + errorData.errors[field].join(', ');
+                        });
                     }
+                    if (errorData.message) {
+                        errorMsg += '\n\nMessage: ' + errorData.message;
+                    }
+                    throw new Error(errorMsg);
                 }
 
-                const responseText = await response.text();
-                console.log('Raw response:', responseText);
-
-                let data;
-                try {
-                    data = JSON.parse(responseText);
-                } catch (parseError) {
-                    console.error('JSON parse error:', parseError);
-                    throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`);
-                }
-
+                const data = await response.json();
                 if (data.success) {
                     alert('Violation recorded successfully!');
                     // Close modal
@@ -869,16 +906,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let searchTimeout;
     let currentFocus = -1;
 
-    function debounce(func, wait) {
-      return function executedFunction(...args) {
-        const later = () => {
-          clearTimeout(searchTimeout);
-          func(...args);
-        };
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(later, wait);
-      };
-    }
 
     function searchStudents(query) {
       if (query.length < 2) {
@@ -1618,29 +1645,39 @@ function showIncidentForm() {
                 <div class="modal-body">
                     <form id="incidentForm">
                         <div class="mb-3">
-                            <label class="form-label">Reported Student</label>
-                            <input type="text" class="form-control" id="incidentReportedStudent" value="${reportedStudent}" readonly>
+                            <label class="form-label fw-bold">Reported Students</label>
+                            <div class="position-relative">
+                              <input type="text" class="form-control" id="incidentStudentSearch" placeholder="Type student name or ID..." autocomplete="off">
+                              <div id="incidentStudentSuggestions" class="suggestions-list" style="display: none;">
+                                <!-- Suggestions will be populated here -->
+                              </div>
+                            </div>
+                            <div id="selectedStudentsContainer" class="mt-2">
+                              <!-- Selected students will be added here -->
+                            </div>
+                            <small class="text-muted">Add multiple students involved in the incident</small>
                         </div>
+
                         <div class="mb-3">
-                            <label class="form-label">Reporter</label>
+                            <label class="form-label fw-bold">Reporter</label>
                             <input type="text" class="form-control" id="incidentReporter" required>
                         </div>
                         <div class="row">
                             <div class="col-md-6">
-                                <label class="form-label">Date</label>
+                                <label class="form-label fw-bold">Date</label>
                                 <input type="date" class="form-control" id="incidentDate" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Time</label>
+                                <label class="form-label fw-bold">Time</label>
                                 <input type="time" class="form-control" id="incidentTime" required>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Details</label>
+                            <label class="form-label fw-bold">Details</label>
                             <textarea class="form-control" id="incidentDetails" rows="4" required></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Violation</label>
+                            <label class="form-label fw-bold">Violation</label>
                             <textarea class="form-control" id="incidentViolation" rows="2" readonly>${violationTitle}: ${violationDescription}</textarea>
                         </div>
                         <button type="submit" class="btn btn-primary">Submit Incident</button>
@@ -1656,77 +1693,244 @@ function showIncidentForm() {
     incidentForm.addEventListener('submit', async function(e) {
         e.preventDefault();
 
+        if (selectedStudents.length === 0) {
+            alert('Please select at least one student for the incident.');
+            return;
+        }
+
         // Collect incident data
         const reporter = document.getElementById('incidentReporter').value;
         const date = document.getElementById('incidentDate').value;
         const time = document.getElementById('incidentTime').value;
         const details = document.getElementById('incidentDetails').value;
 
-        // Now submit the violation form with incident data
-        const violationForm = document.getElementById('recordViolationForm');
-        const formData = new FormData(violationForm);
-        formData.append('incident_reporter', reporter);
-        formData.append('incident_date', date);
-        formData.append('incident_time', time);
-        formData.append('incident_details', details);
-        formData.append('status', 'pending');
-
-        // Add CSRF
-        const csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
-        if (!violationForm.querySelector('input[name="_token"]')) {
-            const tokenInput = document.createElement('input');
-            tokenInput.type = 'hidden';
-            tokenInput.name = '_token';
-            tokenInput.value = csrfTokenEl.getAttribute('content');
-            violationForm.appendChild(tokenInput);
-        }
-
-        // Ensure title is set
-        getViolationTitle();
+        const submitBtn = incidentForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Submitting...';
+        submitBtn.disabled = true;
 
         try {
-            const response = await fetch('/guidance/violations', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfTokenEl.getAttribute('content'),
-                    'Accept': 'application/json'
-                },
-                body: formData
-            });
+            // Submit violation for each selected student
+            const results = [];
+            for (const student of selectedStudents) {
+                const violationForm = document.getElementById('recordViolationForm');
+                const formData = new FormData();
 
-            if (!response.ok) {
-                const responseText = await response.text();
-                if (responseText.startsWith('<')) {
-                    throw new Error('Authentication required. Please log in again.');
-                } else {
-                    throw new Error(`Server error: ${response.status}. ${responseText.substring(0, 200)}`);
+                // Manually append all required fields from the form
+                formData.append('student_id', student.id);
+                formData.append('title', getViolationTitle());
+                formData.append('description', details.trim());
+                formData.append('severity', document.getElementById('violationSeverity').value);
+                formData.append('major_category', document.getElementById('majorCategory').value);
+                formData.append('violation_date', date);
+                formData.append('violation_time', time);
+                formData.append('status', 'pending');
+                formData.append('incident_reporter', reporter);
+                formData.append('incident_date', date);
+                formData.append('incident_time', time);
+
+                // Append other fields if needed (location, notes, etc.)
+                const location = document.getElementById('violationLocation').value;
+                if (location) formData.append('location', location);
+
+
+                // Add CSRF
+                const csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
+                if (!violationForm.querySelector('input[name="_token"]')) {
+                    const tokenInput = document.createElement('input');
+                    tokenInput.type = 'hidden';
+                    tokenInput.name = '_token';
+                    tokenInput.value = csrfTokenEl.getAttribute('content');
+                    violationForm.appendChild(tokenInput);
                 }
+
+                // Ensure title is set
+                getViolationTitle();
+
+                const response = await fetch('/guidance/violations', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfTokenEl.getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const responseText = await response.text();
+                    if (responseText.startsWith('<')) {
+                        throw new Error('Authentication required. Please log in again.');
+                    } else {
+                        throw new Error(`Server error: ${response.status}. ${responseText.substring(0, 200)}`);
+                    }
+                }
+
+                const responseText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`);
+                }
+
+                if (!data.success) {
+                    throw new Error(data.message || `Server error: ${response.status}`);
+                }
+
+                results.push(data);
             }
 
-            const responseText = await response.text();
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`);
-            }
+            alert(`Incident recorded successfully for ${selectedStudents.length} student(s)!`);
+            // Close modals
+            window.ModalManager.hide('incidentFormModal');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('recordViolationModal'));
+            if (modal) modal.hide();
+            // Refresh
+            window.location.reload();
 
-            if (data.success) {
-                alert('Violation and incident recorded successfully!');
-                // Close modals
-                window.ModalManager.hide('incidentFormModal');
-                const modal = bootstrap.Modal.getInstance(document.getElementById('recordViolationModal'));
-                modal.hide();
-                // Refresh
-                window.location.reload();
-            } else {
-                throw new Error(data.message || `Server error: ${response.status}`);
-            }
         } catch (err) {
             console.error('Incident submission error:', err);
             alert('Error submitting incident: ' + err.message);
+        } finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
         }
     });
+
+    // Add student search functionality for incident form
+    const incidentStudentSearch = document.getElementById('incidentStudentSearch');
+    const incidentStudentSuggestions = document.getElementById('incidentStudentSuggestions');
+    const selectedStudentsContainer = document.getElementById('selectedStudentsContainer');
+
+    let incidentSearchTimeout;
+    let incidentCurrentFocus = -1;
+    const selectedStudents = [];
+
+    function incidentSearchStudents(query) {
+      if (query.length < 2) {
+        incidentStudentSuggestions.style.display = 'none';
+        return;
+      }
+
+      fetch(`/guidance/students/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(students => {
+          incidentDisplaySuggestions(students);
+        })
+        .catch(error => {
+          console.error('Error searching students:', error);
+          incidentStudentSuggestions.style.display = 'none';
+        });
+    }
+
+    function incidentDisplaySuggestions(students) {
+      if (students.length === 0) {
+        incidentStudentSuggestions.style.display = 'none';
+        return;
+      }
+
+      const suggestionsHtml = students.map(student => `
+        <div class="suggestion-item" data-student-id="${student.id}" data-student-name="${student.first_name} ${student.last_name} (${student.student_id || 'No ID'})">
+          <div class="suggestion-name">${student.first_name} ${student.last_name}</div>
+          <div class="suggestion-details">ID: ${student.student_id || 'No ID'} | Grade: ${student.grade_level || 'N/A'} | Section: ${student.section || 'N/A'}</div>
+        </div>
+      `).join('');
+
+      incidentStudentSuggestions.innerHTML = suggestionsHtml;
+      incidentStudentSuggestions.style.display = 'block';
+      incidentCurrentFocus = -1;
+    }
+
+    function incidentSelectStudent(studentId, studentName) {
+      if (!selectedStudents.some(s => s.id === studentId)) {
+        selectedStudents.push({ id: studentId, name: studentName });
+        updateSelectedStudentsDisplay();
+      }
+      incidentStudentSearch.value = '';
+      incidentStudentSuggestions.style.display = 'none';
+      incidentCurrentFocus = -1;
+    }
+
+    function updateSelectedStudentsDisplay() {
+      selectedStudentsContainer.innerHTML = selectedStudents.map(student => `
+        <div class="badge bg-primary me-2 mb-2 d-inline-flex align-items-center">
+          ${student.name}
+          <button type="button" class="btn-close btn-close-white ms-2" onclick="removeSelectedStudent(${student.id})" style="font-size: 0.6em;"></button>
+        </div>
+      `).join('');
+    }
+
+    window.removeSelectedStudent = function(studentId) {
+      const index = selectedStudents.findIndex(s => s.id === studentId);
+      if (index > -1) {
+        selectedStudents.splice(index, 1);
+        updateSelectedStudentsDisplay();
+      }
+    };
+
+    const incidentDebouncedSearch = debounce(incidentSearchStudents, 300);
+
+    if (incidentStudentSearch) {
+      incidentStudentSearch.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        incidentDebouncedSearch(query);
+      });
+
+      incidentStudentSearch.addEventListener('keydown', function(e) {
+        const items = incidentStudentSuggestions.querySelectorAll('.suggestion-item');
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          incidentCurrentFocus = incidentCurrentFocus < items.length - 1 ? incidentCurrentFocus + 1 : 0;
+          incidentUpdateFocus(items);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          incidentCurrentFocus = incidentCurrentFocus > 0 ? incidentCurrentFocus - 1 : items.length - 1;
+          incidentUpdateFocus(items);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (incidentCurrentFocus >= 0 && items[incidentCurrentFocus]) {
+            const item = items[incidentCurrentFocus];
+            const studentId = item.getAttribute('data-student-id');
+            const studentName = item.getAttribute('data-student-name');
+            incidentSelectStudent(studentId, studentName);
+          }
+        } else if (e.key === 'Escape') {
+          incidentStudentSuggestions.style.display = 'none';
+          incidentCurrentFocus = -1;
+        }
+      });
+
+      // Click outside to close suggestions
+      document.addEventListener('click', function(e) {
+        if (!incidentStudentSearch.contains(e.target) && !incidentStudentSuggestions.contains(e.target)) {
+          incidentStudentSuggestions.style.display = 'none';
+          incidentCurrentFocus = -1;
+        }
+      });
+    }
+
+    if (incidentStudentSuggestions) {
+      incidentStudentSuggestions.addEventListener('click', function(e) {
+        const item = e.target.closest('.suggestion-item');
+        if (item) {
+          const studentId = item.getAttribute('data-student-id');
+          const studentName = item.getAttribute('data-student-name');
+          incidentSelectStudent(studentId, studentName);
+        }
+      });
+    }
+
+    function incidentUpdateFocus(items) {
+      // Remove previous focus
+      items.forEach(item => item.classList.remove('active'));
+
+      // Add focus to current item
+      if (items[incidentCurrentFocus]) {
+        items[incidentCurrentFocus].classList.add('active');
+        items[incidentCurrentFocus].scrollIntoView({ block: 'nearest' });
+      }
+    }
 
     // Show modal
     window.ModalManager.show('incidentFormModal');
