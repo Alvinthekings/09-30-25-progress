@@ -541,14 +541,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listeners for dropdown changes
     if (severitySelect) {
         severitySelect.addEventListener('change', function() {
+            const studentSelect = document.getElementById('violationStudentSelect');
             if (this.value === 'major') {
                 majorCategoryWrapper.classList.remove('d-none');
                 // Reset and update offenses when switching to major
                 majorCategorySelect.value = '';
                 updateOffenseDropdown();
+                // Disable student field for major offenses
+                if (studentSelect) {
+                    studentSelect.disabled = true;
+                    studentSelect.style.opacity = '0.6';
+                }
             } else {
                 majorCategoryWrapper.classList.add('d-none');
                 updateOffenseDropdown();
+                // Enable student field for minor offenses
+                if (studentSelect) {
+                    studentSelect.disabled = false;
+                    studentSelect.style.opacity = '1';
+                }
             }
         });
     }
