@@ -301,8 +301,8 @@ window.editViolation = function(violationId) {
                 const witnesses = Array.from(witnessInputs).map(input => input.value.trim()).filter(value => value.length > 0);
 
                 const formData = new FormData(form);
-                const submitBtn = form.querySelector('button[type="submit"]');
-                const originalText = submitBtn.innerHTML;
+            const submitBtn = document.querySelector('#recordViolationModal button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
 
                 // Set trimmed description
                 formData.set('description', descriptionValue);
@@ -691,12 +691,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Reset student search fields
             const studentSearchInput = document.getElementById('violationStudentSearch');
-            const studentIdInput = document.getElementById('violationStudentId');
             const studentSuggestions = document.getElementById('studentSuggestions');
+            const selectedStudentsContainer = document.getElementById('selectedStudentsContainer');
 
             if (studentSearchInput) studentSearchInput.value = '';
-            if (studentIdInput) studentIdInput.value = '';
             if (studentSuggestions) studentSuggestions.style.display = 'none';
+            if (selectedStudentsContainer) selectedStudentsContainer.innerHTML = '';
+
+            // Initialize selected students array
+            window.selectedStudents = [];
+
+            // If student ID provided, add it to selected students
+            if (studentId) {
+                // Fetch student details and add to selected
+                fetch(`/guidance/students/${studentId}`)
+                    .then(response => response.json())
+                    .then(student => {
+                        window.selectedStudents.push({
+                            id: student.id,
+                            name: `${student.first_name} ${student.last_name} (${student.student_id || 'No ID'})`
+                        });
+                        updateSelectedStudentsDisplay();
+                    })
+                    .catch(error => console.error('Error fetching student:', error));
+            }
 
             // Reset form
             if (severitySelect) severitySelect.value = '';
@@ -718,7 +736,12 @@ document.addEventListener('DOMContentLoaded', function() {
         violationForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const submitBtn = e.target.querySelector('button[type="submit"]');
+            if (window.selectedStudents.length === 0) {
+                alert('Please select at least one student for the violation.');
+                return;
+            }
+
+            const submitBtn = document.querySelector('#recordViolationModal button[type="submit"]');
             const originalText = submitBtn.textContent;
 
             // Show loading state
@@ -728,14 +751,13 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 // Check if required elements exist
                 const violationForm = document.getElementById('recordViolationForm');
-                const studentIdEl = document.getElementById('violationStudentId');
                 const severityEl = document.getElementById('violationSeverity');
                 const descriptionEl = document.getElementById('violationDescription');
                 const dateEl = document.getElementById('violationDate');
                 const locationEl = document.getElementById('violationLocation');
                 const csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
 
-                if (!violationForm || !studentIdEl || !severityEl || !descriptionEl || !dateEl || !locationEl || !csrfTokenEl) {
+                if (!violationForm || !severityEl || !descriptionEl || !dateEl || !locationEl || !csrfTokenEl) {
                     throw new Error('Form elements are missing. Please refresh the page and try again.');
                 }
 
@@ -751,54 +773,86 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Ensure title is set for custom offenses
                 getViolationTitle(); // This will set the select value if custom
 
-                // Get form data including files and all form fields
-                const formData = new FormData(violationForm);
-                formData.append('status', 'pending');
+                // Submit violation for each selected student
+                const results = [];
+                for (const student of window.selectedStudents) {
+                    const formData = new FormData();
 
-                console.log('Submitting violation data:', {
-                    student_id: formData.get('student_id'),
-                    title: formData.get('title'),
-                    severity: formData.get('severity'),
-                    description: formData.get('description')
-                });
+                    // Manually append all required fields from the form
+                    formData.append('student_id', student.id);
+                    formData.append('title', getViolationTitle());
+                    formData.append('description', descriptionEl.value.trim());
+                    formData.append('severity', severityEl.value);
+                    formData.append('major_category', document.getElementById('majorCategory').value);
+                    formData.append('violation_date', dateEl.value);
+                    formData.append('violation_time', document.getElementById('violationTime').value);
+                    formData.append('location', locationEl.value);
+                    formData.append('status', 'pending');
 
-                const response = await fetch('/guidance/violations', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfTokenEl.getAttribute('content'),
-                        'Accept': 'application/json'
-                    },
-                    body: formData
-                });
+                    // Append witnesses
+                    const witnessInputs = document.querySelectorAll('#witnessesContainer input[name="witnesses[]"]');
+                    witnessInputs.forEach(input => {
+                        if (input.value.trim()) {
+                            formData.append('witnesses[]', input.value.trim());
+                        }
+                    });
 
-                console.log('Response status:', response.status);
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    let errorMsg = 'Submission failed with status: ' + response.status;
-                    if (errorData.errors) {
-                        errorMsg += '\n\nValidation errors:';
-                        Object.keys(errorData.errors).forEach(field => {
-                            errorMsg += '\n- ' + field + ': ' + errorData.errors[field].join(', ');
-                        });
+                    // Append attachments
+                    const attachmentInput = document.querySelector('input[name="attachments[]"]');
+                    if (attachmentInput && attachmentInput.files.length > 0) {
+                        for (let i = 0; i < attachmentInput.files.length; i++) {
+                            formData.append('attachments[]', attachmentInput.files[i]);
+                        }
                     }
-                    if (errorData.message) {
-                        errorMsg += '\n\nMessage: ' + errorData.message;
+
+                    console.log('Submitting violation data for student:', student.name, {
+                        student_id: student.id,
+                        title: formData.get('title'),
+                        severity: formData.get('severity'),
+                        description: formData.get('description')
+                    });
+
+                    const response = await fetch('/guidance/violations', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfTokenEl.getAttribute('content'),
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    });
+
+                    console.log('Response status:', response.status);
+
+                    if (!response.ok) {
+                        const responseText = await response.text();
+                        if (responseText.startsWith('<')) {
+                            throw new Error('Authentication required. Please log in again.');
+                        } else {
+                            throw new Error(`Server error: ${response.status}. ${responseText.substring(0, 200)}`);
+                        }
                     }
-                    throw new Error(errorMsg);
+
+                    const responseText = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`);
+                    }
+
+                    if (!data.success) {
+                        throw new Error(data.message || `Server error: ${response.status}`);
+                    }
+
+                    results.push(data);
                 }
 
-                const data = await response.json();
-                if (data.success) {
-                    alert('Violation recorded successfully!');
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('recordViolationModal'));
-                    modal.hide();
-                    // Refresh the page to show new violation
-                    window.location.reload();
-                } else {
-                    throw new Error(data.message || `Server error: ${response.status}`);
-                }
+                alert(`Violation recorded successfully for ${window.selectedStudents.length} student(s)!`);
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('recordViolationModal'));
+                modal.hide();
+                // Refresh the page to show new violations
+                window.location.reload();
 
             } catch (err) {
                 console.error('Violation submission error:', err);
@@ -861,7 +915,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const rows = document.querySelectorAll('#violationsTable tbody tr');
 
       rows.forEach(row => {
-        if (row.cells.length < 8) return; // Skip empty rows
+        if (row.cells.length < 8 || !row.cells[1] || !row.cells[2] || !row.cells[3] || !row.cells[4] || !row.cells[5] || !row.cells[6]) return; // Skip empty or malformed rows
 
         const student = row.cells[1].textContent.toLowerCase();
         const violation = row.cells[2].textContent.toLowerCase();
@@ -943,11 +997,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function selectStudent(studentId, studentName) {
-      studentSearchInput.value = studentName;
-      studentIdInput.value = studentId;
+      if (!window.selectedStudents.some(s => s.id === studentId)) {
+        window.selectedStudents.push({ id: studentId, name: studentName });
+        updateSelectedStudentsDisplay();
+      }
+      studentSearchInput.value = '';
       studentSuggestions.style.display = 'none';
       currentFocus = -1;
     }
+
+    function updateSelectedStudentsDisplay() {
+      selectedStudentsContainer.innerHTML = window.selectedStudents.map(student => `
+        <div class="badge bg-primary me-2 mb-2 d-inline-flex align-items-center">
+          ${student.name}
+          <button type="button" class="btn-close btn-close-white ms-2" onclick="removeSelectedStudent(${student.id})" style="font-size: 0.6em;"></button>
+        </div>
+      `).join('');
+    }
+
+    window.removeSelectedStudent = function(studentId) {
+      const index = window.selectedStudents.findIndex(s => s.id === studentId);
+      if (index > -1) {
+        window.selectedStudents.splice(index, 1);
+        updateSelectedStudentsDisplay();
+      }
+    };
 
     const debouncedSearch = debounce(searchStudents, 300);
 
@@ -1326,40 +1400,43 @@ window.updateViolationRow = function(violationId, violation) {
     },
     
     showFallback: function(modalId) {
-      const modalElement = document.getElementById(modalId);
-      const backdrop = this.createBackdrop(modalId);
-      
-      modalElement.style.display = 'block';
-      modalElement.classList.add('show');
-      modalElement.setAttribute('aria-hidden', 'false');
-      modalElement.setAttribute('aria-modal', 'true');
-      modalElement.setAttribute('role', 'dialog');
-      
-      document.body.classList.add('modal-open');
-      document.body.appendChild(backdrop);
-      
-      this.activeModals.add(modalId);
-      this.addFallbackEventListeners(modalId);
-      
-      return true;
+        const modalElement = document.getElementById(modalId);
+        const backdrop = this.createBackdrop(modalId);
+
+        modalElement.style.display = 'block';
+        modalElement.style.zIndex = '1050';
+        modalElement.classList.add('show');
+        modalElement.setAttribute('aria-hidden', 'false');
+        modalElement.setAttribute('aria-modal', 'true');
+        modalElement.setAttribute('role', 'dialog');
+
+        document.body.classList.add('modal-open');
+        document.body.appendChild(backdrop);
+
+        this.activeModals.add(modalId);
+        this.addFallbackEventListeners(modalId);
     },
     
     hideFallback: function(modalId) {
       const modalElement = document.getElementById(modalId);
       const backdrop = document.getElementById(modalId + '-backdrop');
-      
+
+      // Move focus to a safe element outside the modal to avoid aria-hidden warning
+      const focusTarget = document.querySelector('main') || document.body;
+      focusTarget.focus();
+
       modalElement.style.display = 'none';
       modalElement.classList.remove('show');
-      modalElement.setAttribute('aria-hidden', 'true');
+      modalElement.inert = true; // Use inert instead of aria-hidden for better accessibility
       modalElement.removeAttribute('aria-modal');
       modalElement.removeAttribute('role');
-      
+
       if (backdrop) backdrop.remove();
-      
+
       if (this.activeModals.size <= 1) {
         document.body.classList.remove('modal-open');
       }
-      
+
       this.activeModals.delete(modalId);
       return true;
     },
@@ -1411,166 +1488,6 @@ window.updateViolationRow = function(violationId, violation) {
     }
   };
 
-// Convenient wrapper functions
-window.showModal = function(modalId) {
-  return window.ModalManager.show(modalId);
-}
-
-window.hideModal = function(modalId) {
-  return window.ModalManager.hide(modalId);
-}
-
-  // (Functions moved to global scope above)
-
-  // Functions are now in global scope above
-
-// Comprehensive modal management system
-window.ModalManager = {
-    activeModals: new Set(),
-
-    show: function(modalId) {
-        try {
-            const modalElement = document.getElementById(modalId);
-            if (!modalElement) {
-                console.error('Modal not found:', modalId);
-                return false;
-            }
-
-            // Try Bootstrap first
-            if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
-                const modal = new window.bootstrap.Modal(modalElement, {
-                    backdrop: true,
-                    keyboard: true,
-                    focus: true
-                });
-                modal.show();
-                this.activeModals.add(modalId);
-
-                // Add event listeners for proper cleanup
-                modalElement.addEventListener('hidden.bs.modal', () => {
-                    this.activeModals.delete(modalId);
-                }, { once: true });
-
-                return true;
-            }
-
-            // Fallback implementation
-            return this.showFallback(modalId);
-
-        } catch (error) {
-            console.error('Error showing modal:', error);
-            return this.showFallback(modalId);
-        }
-    },
-
-    hide: function(modalId) {
-        try {
-            const modalElement = document.getElementById(modalId);
-            if (!modalElement) return false;
-
-            // Try Bootstrap first
-            if (typeof window.bootstrap !== 'undefined') {
-                const modal = window.bootstrap.Modal.getInstance(modalElement);
-                if (modal) {
-                    modal.hide();
-                    return true;
-                }
-            }
-
-            // Fallback implementation
-            return this.hideFallback(modalId);
-
-        } catch (error) {
-            console.error('Error hiding modal:', error);
-            return this.hideFallback(modalId);
-        }
-    },
-
-    showFallback: function(modalId) {
-        const modalElement = document.getElementById(modalId);
-        const backdrop = this.createBackdrop(modalId);
-
-        modalElement.style.display = 'block';
-        modalElement.classList.add('show');
-        modalElement.setAttribute('aria-hidden', 'false');
-        modalElement.setAttribute('aria-modal', 'true');
-        modalElement.setAttribute('role', 'dialog');
-
-        document.body.classList.add('modal-open');
-        document.body.appendChild(backdrop);
-
-        this.activeModals.add(modalId);
-        this.addFallbackEventListeners(modalId);
-
-        return true;
-    },
-
-    hideFallback: function(modalId) {
-        const modalElement = document.getElementById(modalId);
-        const backdrop = document.getElementById(modalId + '-backdrop');
-
-        modalElement.style.display = 'none';
-        modalElement.classList.remove('show');
-        modalElement.setAttribute('aria-hidden', 'true');
-        modalElement.removeAttribute('aria-modal');
-        modalElement.removeAttribute('role');
-
-        if (backdrop) backdrop.remove();
-
-        if (this.activeModals.size <= 1) {
-            document.body.classList.remove('modal-open');
-        }
-
-        this.activeModals.delete(modalId);
-        return true;
-    },
-
-    createBackdrop: function(modalId) {
-        // Remove existing backdrop
-        const existingBackdrop = document.getElementById(modalId + '-backdrop');
-        if (existingBackdrop) existingBackdrop.remove();
-
-        const backdrop = document.createElement('div');
-        backdrop.className = 'modal-backdrop fade show';
-        backdrop.id = modalId + '-backdrop';
-        backdrop.style.zIndex = '1040';
-
-        // Click to close
-        backdrop.addEventListener('click', () => this.hide(modalId));
-
-        return backdrop;
-    },
-
-    addFallbackEventListeners: function(modalId) {
-        const modalElement = document.getElementById(modalId);
-
-        // ESC key to close
-        const escHandler = (e) => {
-            if (e.key === 'Escape' && this.activeModals.has(modalId)) {
-                this.hide(modalId);
-                document.removeEventListener('keydown', escHandler);
-            }
-        };
-        document.addEventListener('keydown', escHandler);
-
-        // Close buttons
-        const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
-        closeButtons.forEach(button => {
-            button.addEventListener('click', () => this.hide(modalId));
-        });
-
-        // Click outside to close
-        modalElement.addEventListener('click', (e) => {
-            if (e.target === modalElement) {
-                this.hide(modalId);
-            }
-        });
-    },
-
-    hideAll: function() {
-        this.activeModals.forEach(modalId => this.hide(modalId));
-    }
-};
 
 // Function to use custom offense
 window.useCustomOffense = function() {
@@ -1684,8 +1601,8 @@ function showIncidentForm() {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-info" onclick="generateIncidentForm()">Generate Incident Form</button>
-                    <button type="submit" form="incidentForm" class="btn btn-primary">Submit Incident</button>
+                    <button type="button" class="btn btn-success" onclick="generateIncidentForm()">Generate Incident Form</button>
+                    <button type="submit" form="incidentForm" class="btn btn-success">Submit Incident</button>
                 </div>
             </div>
         </div>
@@ -1708,7 +1625,7 @@ function showIncidentForm() {
         const time = document.getElementById('incidentTime').value;
         const details = document.getElementById('incidentDetails').value;
 
-        const submitBtn = incidentForm.querySelector('button[type="submit"]');
+        const submitBtn = document.querySelector('#incidentFormModal button[type="submit"]');
         const originalText = submitBtn.textContent;
         submitBtn.textContent = 'Submitting...';
         submitBtn.disabled = true;
@@ -1784,7 +1701,7 @@ function showIncidentForm() {
                 results.push(data);
             }
 
-            alert(`Incident recorded successfully for ${selectedStudents.length} student(s)!`);
+            alert(`Incident recorded successfully for ${window.incidentSelectedStudents.length} student(s)!`);
             // Close modals
             window.ModalManager.hide('incidentFormModal');
             const modal = bootstrap.Modal.getInstance(document.getElementById('recordViolationModal'));
@@ -2037,7 +1954,7 @@ window.generateIncidentForm = function() {
         </head>
         <body>
             <div class="header">
-                <div class="school-name">[School Name]</div>
+                <div class="school-name">Nicolites Montessori School</div>
                 <div class="form-title">INCIDENT REPORT FORM</div>
             </div>
 

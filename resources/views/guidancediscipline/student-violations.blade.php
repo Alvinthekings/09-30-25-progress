@@ -33,7 +33,7 @@
     <!-- STATISTICS CARDS -->
     <div class="row g-3 mb-4">
       <div class="col-6 col-lg-3">
-        <div class="card card-summary stats-card h-100" style="background-color: #ffc107;">
+        <div class="card card-summary stats-card h-100" style="background-color: #7CB342; color: white;">
           <div class="card-body text-center">
             <i class="ri-time-line display-6 mb-2"></i>
             <div>Pending</div>
@@ -42,7 +42,7 @@
         </div>
       </div>
       <div class="col-6 col-lg-3">
-        <div class="card card-summary stats-card h-100" style="background-color: #17a2b8;">
+        <div class="card card-summary stats-card h-100" style="background-color: #28a745; color: white;">
           <div class="card-body text-center">
             <i class="ri-search-line display-6 mb-2"></i>
             <div>Investigating</div>
@@ -51,7 +51,7 @@
         </div>
       </div>
       <div class="col-6 col-lg-3">
-        <div class="card card-summary stats-card h-100" style="background-color: #28a745;">
+        <div class="card card-summary stats-card h-100" style="background-color: #20c997; color: black;">
           <div class="card-body text-center">
             <i class="ri-check-line display-6 mb-2"></i>
             <div>Resolved</div>
@@ -60,7 +60,7 @@
         </div>
       </div>
       <div class="col-6 col-lg-3">
-        <div class="card card-summary stats-card h-100" style="background-color: #dc3545;">
+        <div class="card card-summary stats-card h-100" style="background-color: #2d6a3e; color: white;">
           <div class="card-body text-center">
             <i class="ri-error-warning-line display-6 mb-2"></i>
             <div>Severe Cases</div>
