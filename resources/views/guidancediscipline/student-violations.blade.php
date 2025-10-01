@@ -97,8 +97,8 @@
           <table class="table table-hover align-middle" id="violationsTable">
             <thead>
               <tr>
-                <th>Student</th>
                 <th>Violation</th>
+                <th>Student</th>
                 <th>Date</th>
                 <th>Actions</th>
               </tr>
@@ -190,6 +190,14 @@
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
+                <label class="form-label fw-bold">Title/Offense</label>
+                <select class="form-select" name="title" id="violationTitle" required>
+                  <option value="">-- Select Offense --</option>
+                </select>
+                <small class="text-muted">Select an offense to automatically determine severity and category</small>
+              </div>
+
+              <div class="mb-3">
                 <label class="form-label fw-bold">Student</label>
                 <select class="form-select" id="violationStudentSelect" name="student_id" required>
                   <option value="">Select Student</option>
@@ -200,14 +208,6 @@
                     </option>
                   @endforeach
                 </select>
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label fw-bold">Title/Offense</label>
-                <select class="form-select" name="title" id="violationTitle" required>
-                  <option value="">-- Select Offense --</option>
-                </select>
-                <small class="text-muted">Select an offense to automatically determine severity and category</small>
               </div>
 
               <div class="mb-3">

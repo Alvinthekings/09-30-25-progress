@@ -405,6 +405,21 @@ window.editViolation = function(violationId) {
 };
 console.log('editViolation function defined on window:', typeof window.editViolation);
 
+// Helper function to get violation title
+function getViolationTitle() {
+    const violationTitleSelect = document.getElementById('violationTitle');
+    const customInput = document.getElementById('customOffenseText');
+
+    if (!violationTitleSelect) {
+        throw new Error('Violation title element is missing.');
+    }
+
+    if (violationTitleSelect.value === 'custom' && customInput && customInput.value.trim()) {
+        return customInput.value.trim();
+    }
+    return violationTitleSelect.value;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Offense library
     const offenseOptions = {
@@ -649,6 +664,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const violationForm = document.getElementById('recordViolationForm');
     if (violationForm) {
         violationForm.addEventListener('submit', async function(e) {
+            const severityEl = document.getElementById('violationSeverity');
+            if (severityEl && severityEl.value === 'major') {
+                e.preventDefault();
+                showIncidentForm();
+                return;
+            }
+
             e.preventDefault();
 
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -749,21 +771,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Helper function to get violation title
-    function getViolationTitle() {
-        const violationTitleSelect = document.getElementById('violationTitle');
-        const customInput = document.getElementById('customOffenseText');
-
-        if (!violationTitleSelect) {
-            throw new Error('Violation title element is missing.');
-        }
-
-        if (violationTitleSelect.value === 'custom' && customInput && customInput.value.trim()) {
-            return customInput.value.trim();
-        }
-        return violationTitleSelect.value;
-    }
-
     // Initialize modal event listeners
     setTimeout(function() {
       initializeModalEventListeners();
@@ -772,21 +779,25 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeModalEventListeners() {
       // Add close button functionality to all modals
       document.querySelectorAll('.modal').forEach(modal => {
-        const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
-        closeButtons.forEach(button => {
-          button.addEventListener('click', function() {
-            hideModal(modal.id);
+        if (modal) {
+          const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+          closeButtons.forEach(button => {
+            if (button) {
+              button.addEventListener('click', function() {
+                hideModal(modal.id);
+              });
+            }
           });
-        });
-        
-        // Close on backdrop click
-        modal.addEventListener('click', function(e) {
-          if (e.target === modal) {
-            hideModal(modal.id);
-          }
-        });
+
+          // Close on backdrop click
+          modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+              hideModal(modal.id);
+            }
+          });
+        }
       });
-      
+
       // Global ESC key listener
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
@@ -800,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const severityFilter = document.getElementById('severityFilter');
     const typeFilter = document.getElementById('typeFilter');
     const dateFilter = document.getElementById('dateFilter');
-    
+
     function filterTable() {
       const searchTerm = searchInput.value.toLowerCase();
       const statusValue = statusFilter.value;
@@ -839,7 +850,7 @@ document.addEventListener('DOMContentLoaded', function() {
         row.style.display = matchesSearch && matchesStatus && matchesSeverity && matchesType && matchesDate ? '' : 'none';
       });
     }
-    
+
     [searchInput, statusFilter, severityFilter, typeFilter, dateFilter].forEach(element => {
       element.addEventListener('input', filterTable);
       element.addEventListener('change', filterTable);
@@ -1069,7 +1080,7 @@ window.updateViolationRow = function(violationId, violation) {
         statusCell.innerHTML = `<span class="badge bg-${statusClass}">${violation.status.charAt(0).toUpperCase() + violation.status.slice(1)}</span>`;
         
         // Update violation info if title changed
-        const violationCell = row.cells[2];
+        const violationCell = row.cells[0];
         const titleElement = violationCell.querySelector('strong');
         if (titleElement) {
           titleElement.textContent = violation.title;
@@ -1079,16 +1090,9 @@ window.updateViolationRow = function(violationId, violation) {
         const studentCell = row.cells[1];
         if (studentCell && violation.student) {
           studentCell.innerHTML = `
-            <div class="d-flex align-items-center">
-              <div class="avatar avatar-sm me-2">
-                <div class="avatar-initial bg-label-primary rounded">
-                  <i class="ri-user-line ri-22px"></i>
-                </div>
-              </div>
-              <div class="d-flex flex-column">
-                <span class="fw-medium">${violation.student.first_name} ${violation.student.last_name}</span>
-                <small class="text-muted">${violation.student.student_id || 'No ID'}</small>
-              </div>
+            <div>
+              <strong>${violation.student.first_name} ${violation.student.last_name}</strong>
+              <br><small class="text-muted">${violation.student.student_id || 'No ID'}</small>
             </div>
           `;
         }
@@ -1460,6 +1464,144 @@ window.openViolationModal = function(student) {
     const modalEl = document.getElementById('recordViolationModal');
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
+}
+
+// Function to show incident form for major offenses
+function showIncidentForm() {
+    // Get violation data
+    const studentSelect = document.getElementById('violationStudentSelect');
+    const selectedOption = studentSelect ? studentSelect.options[studentSelect.selectedIndex] : null;
+    const reportedStudent = selectedOption ? selectedOption.text : '';
+
+    const violationTitle = getViolationTitle();
+    const violationDescription = document.getElementById('violationDescription').value;
+
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'incidentFormModal';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Incident Form</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="incidentForm">
+                        <div class="mb-3">
+                            <label class="form-label">Reported Student</label>
+                            <input type="text" class="form-control" id="incidentReportedStudent" value="${reportedStudent}" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reporter</label>
+                            <input type="text" class="form-control" id="incidentReporter" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Date</label>
+                                <input type="date" class="form-control" id="incidentDate" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Time</label>
+                                <input type="time" class="form-control" id="incidentTime" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Details</label>
+                            <textarea class="form-control" id="incidentDetails" rows="4" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Violation</label>
+                            <textarea class="form-control" id="incidentViolation" rows="2" readonly>${violationTitle}: ${violationDescription}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit Incident</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Add submit handler
+    const incidentForm = document.getElementById('incidentForm');
+    incidentForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Collect incident data
+        const reporter = document.getElementById('incidentReporter').value;
+        const date = document.getElementById('incidentDate').value;
+        const time = document.getElementById('incidentTime').value;
+        const details = document.getElementById('incidentDetails').value;
+
+        // Now submit the violation form with incident data
+        const violationForm = document.getElementById('recordViolationForm');
+        const formData = new FormData(violationForm);
+        formData.append('incident_reporter', reporter);
+        formData.append('incident_date', date);
+        formData.append('incident_time', time);
+        formData.append('incident_details', details);
+        formData.append('status', 'pending');
+
+        // Add CSRF
+        const csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
+        if (!violationForm.querySelector('input[name="_token"]')) {
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '_token';
+            tokenInput.value = csrfTokenEl.getAttribute('content');
+            violationForm.appendChild(tokenInput);
+        }
+
+        // Ensure title is set
+        getViolationTitle();
+
+        try {
+            const response = await fetch('/guidance/violations', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfTokenEl.getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const responseText = await response.text();
+                if (responseText.startsWith('<')) {
+                    throw new Error('Authentication required. Please log in again.');
+                } else {
+                    throw new Error(`Server error: ${response.status}. ${responseText.substring(0, 200)}`);
+                }
+            }
+
+            const responseText = await response.text();
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                throw new Error(`Server returned invalid JSON. Status: ${response.status}. Response: ${responseText.substring(0, 200)}`);
+            }
+
+            if (data.success) {
+                alert('Violation and incident recorded successfully!');
+                // Close modals
+                window.ModalManager.hide('incidentFormModal');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('recordViolationModal'));
+                modal.hide();
+                // Refresh
+                window.location.reload();
+            } else {
+                throw new Error(data.message || `Server error: ${response.status}`);
+            }
+        } catch (err) {
+            console.error('Incident submission error:', err);
+            alert('Error submitting incident: ' + err.message);
+        }
+    });
+
+    // Show modal
+    window.ModalManager.show('incidentFormModal');
 }
 
 // Convenient wrapper functions
