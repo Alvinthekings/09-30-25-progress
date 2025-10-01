@@ -1,2 +1,0 @@
-- [ ] Modify severity change event listener to disable/enable student field when major is selected
-- [ ] Handle initial state when modal opens to disable student field if severity is major

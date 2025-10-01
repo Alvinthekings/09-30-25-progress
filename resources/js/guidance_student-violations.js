@@ -1680,8 +1680,12 @@ function showIncidentForm() {
                             <label class="form-label fw-bold">Violation</label>
                             <textarea class="form-control" id="incidentViolation" rows="2" readonly>${violationTitle}: ${violationDescription}</textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary">Submit Incident</button>
                     </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-info" onclick="generateIncidentForm()">Generate Incident Form</button>
+                    <button type="submit" form="incidentForm" class="btn btn-primary">Submit Incident</button>
                 </div>
             </div>
         </div>
@@ -1693,7 +1697,7 @@ function showIncidentForm() {
     incidentForm.addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        if (selectedStudents.length === 0) {
+        if (window.incidentSelectedStudents.length === 0) {
             alert('Please select at least one student for the incident.');
             return;
         }
@@ -1712,7 +1716,7 @@ function showIncidentForm() {
         try {
             // Submit violation for each selected student
             const results = [];
-            for (const student of selectedStudents) {
+            for (const student of window.incidentSelectedStudents) {
                 const violationForm = document.getElementById('recordViolationForm');
                 const formData = new FormData();
 
@@ -1804,7 +1808,7 @@ function showIncidentForm() {
 
     let incidentSearchTimeout;
     let incidentCurrentFocus = -1;
-    const selectedStudents = [];
+    window.incidentSelectedStudents = [];
 
     function incidentSearchStudents(query) {
       if (query.length < 2) {
@@ -1842,8 +1846,8 @@ function showIncidentForm() {
     }
 
     function incidentSelectStudent(studentId, studentName) {
-      if (!selectedStudents.some(s => s.id === studentId)) {
-        selectedStudents.push({ id: studentId, name: studentName });
+      if (!window.incidentSelectedStudents.some(s => s.id === studentId)) {
+        window.incidentSelectedStudents.push({ id: studentId, name: studentName });
         updateSelectedStudentsDisplay();
       }
       incidentStudentSearch.value = '';
@@ -1852,7 +1856,7 @@ function showIncidentForm() {
     }
 
     function updateSelectedStudentsDisplay() {
-      selectedStudentsContainer.innerHTML = selectedStudents.map(student => `
+      selectedStudentsContainer.innerHTML = window.incidentSelectedStudents.map(student => `
         <div class="badge bg-primary me-2 mb-2 d-inline-flex align-items-center">
           ${student.name}
           <button type="button" class="btn-close btn-close-white ms-2" onclick="removeSelectedStudent(${student.id})" style="font-size: 0.6em;"></button>
@@ -1861,9 +1865,9 @@ function showIncidentForm() {
     }
 
     window.removeSelectedStudent = function(studentId) {
-      const index = selectedStudents.findIndex(s => s.id === studentId);
+      const index = window.incidentSelectedStudents.findIndex(s => s.id === studentId);
       if (index > -1) {
-        selectedStudents.splice(index, 1);
+        window.incidentSelectedStudents.splice(index, 1);
         updateSelectedStudentsDisplay();
       }
     };
@@ -1943,5 +1947,175 @@ window.showModal = function(modalId) {
 
 window.hideModal = function(modalId) {
     return window.ModalManager.hide(modalId);
+}
+
+// Function to generate printable incident form
+window.generateIncidentForm = function() {
+    // Get form data
+    const reporter = document.getElementById('incidentReporter').value;
+    const date = document.getElementById('incidentDate').value;
+    const time = document.getElementById('incidentTime').value;
+    const details = document.getElementById('incidentDetails').value;
+    const violation = document.getElementById('incidentViolation').value;
+
+    // Get selected students
+    const selectedStudentsText = Array.from(document.querySelectorAll('#selectedStudentsContainer .badge'))
+        .map(badge => badge.textContent.trim())
+        .join(', ');
+
+    // Validate required fields
+    if (!reporter || !date || !time || !details || window.incidentSelectedStudents.length === 0) {
+        alert('Please fill in all required fields before generating the incident form.');
+        return;
+    }
+
+    // Create printable HTML
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Incident Report Form</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 20px;
+                    line-height: 1.6;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 10px;
+                    margin-bottom: 20px;
+                }
+                .school-name {
+                    font-size: 24px;
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                }
+                .form-title {
+                    font-size: 18px;
+                    font-weight: bold;
+                }
+                .section {
+                    margin-bottom: 20px;
+                }
+                .section-title {
+                    font-weight: bold;
+                    font-size: 14px;
+                    margin-bottom: 8px;
+                    border-bottom: 1px solid #ccc;
+                    padding-bottom: 3px;
+                }
+                .field {
+                    margin-bottom: 10px;
+                }
+                .field-label {
+                    font-weight: bold;
+                    display: inline-block;
+                    min-width: 120px;
+                }
+                .field-value {
+                    display: inline-block;
+                }
+                .signature-section {
+                    margin-top: 40px;
+                    border-top: 1px solid #000;
+                    padding-top: 20px;
+                }
+                .signature-line {
+                    display: inline-block;
+                    width: 200px;
+                    border-bottom: 1px solid #000;
+                    margin-right: 20px;
+                    margin-bottom: 20px;
+                }
+                @media print {
+                    body { margin: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="school-name">[School Name]</div>
+                <div class="form-title">INCIDENT REPORT FORM</div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">INCIDENT INFORMATION</div>
+                <div class="field">
+                    <span class="field-label">Date of Incident:</span>
+                    <span class="field-value">${new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                </div>
+                <div class="field">
+                    <span class="field-label">Time of Incident:</span>
+                    <span class="field-value">${time}</span>
+                </div>
+                <div class="field">
+                    <span class="field-label">Reported By:</span>
+                    <span class="field-value">${reporter}</span>
+                </div>
+                <div class="field">
+                    <span class="field-label">Students Involved:</span>
+                    <span class="field-value">${selectedStudentsText}</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">INCIDENT DETAILS</div>
+                <div style="margin-top: 10px; padding: 10px; border: 1px solid #ccc; min-height: 100px;">
+                    ${details.replace(/\n/g, '<br>')}
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">VIOLATION INFORMATION</div>
+                <div style="margin-top: 10px; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9;">
+                    ${violation.replace(/\n/g, '<br>')}
+                </div>
+            </div>
+
+            <div class="signature-section">
+                <div style="margin-bottom: 20px;">
+                    <strong>Prepared by:</strong>
+                </div>
+                <div class="signature-line"></div>
+                <div style="display: inline-block; font-size: 12px; color: #666;">
+                    Signature over Printed Name
+                </div>
+
+                <div style="margin-top: 20px; margin-bottom: 20px;">
+                    <strong>Reviewed by:</strong>
+                </div>
+                <div class="signature-line"></div>
+                <div style="display: inline-block; font-size: 12px; color: #666;">
+                    Guidance Counselor/Discipline Officer
+                </div>
+
+                <div style="margin-top: 20px; margin-bottom: 20px;">
+                    <strong>Approved by:</strong>
+                </div>
+                <div class="signature-line"></div>
+                <div style="display: inline-block; font-size: 12px; color: #666;">
+                    Principal/Discipline Head
+                </div>
+            </div>
+
+            <div style="margin-top: 40px; font-size: 12px; color: #666; text-align: center;">
+                Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+            </div>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+
+    // Wait for content to load then print
+    printWindow.onload = function() {
+        printWindow.print();
+        // Optionally close the print window after printing
+        // printWindow.close();
+    };
 }
 
