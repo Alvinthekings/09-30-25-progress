@@ -10,10 +10,10 @@ class Violation extends Model
     protected $fillable = [
         'student_id',
         'reported_by',
-        'violation_type',
         'title',
         'description',
         'severity',
+        'major_category',
         'violation_date',
         'violation_time',
         'location',

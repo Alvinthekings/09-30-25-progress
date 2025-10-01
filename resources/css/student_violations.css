@@ -31,99 +31,76 @@
   color: #fff;
   transform: translateX(5px);
 }
+.sidebar .nav-link.disabled {
+  color: var(--secondary-color) !important;
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+  background-color: rgba(208, 216, 195, 0.3);
+}
+.sidebar .nav-link.disabled:hover {
+  background-color: rgba(208, 216, 195, 0.3) !important;
+  color: var(--secondary-color) !important;
+  transform: none;
+}
+.sidebar .nav-link.disabled i {
+  opacity: 0.5;
+}
 
-  /* Summary Cards */
-  .card-summary { color: #fff; }
-  .card-total { background-color: var(--primary-color); }
-  .card-minor { background-color: var(--accent-color); }
-  .card-major { background-color: #dc3545; }
-  .card-recent { background-color: var(--secondary-color); color: var(--dark-green); }
-  /* Table Head */
-  .table thead {
-    background-color: var(--primary-color);
-    color: #fff;
-  }
-  .table thead th {
-    border-bottom: 2px solid var(--accent-color);
-    font-weight: 600;
-  }
-  
-  /* Table row hover */
-  .table-hover tbody tr:hover {
-    background-color: var(--light-green);
-    color: var(--dark-green);
-  }
-  /* Buttons */
-  .btn-outline-primary {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-    transition: all 0.3s ease;
-  }
-  .btn-outline-primary:hover {
-    background-color: var(--primary-color);
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(1, 68, 33, 0.2);
-  }
-  .btn-outline-primary:active {
-    transform: translateY(0);
-  }
+/* Summary Cards */
+.card-summary { color: #fff; }
+.card-total   { background-color: var(--primary-color); }
+.card-minor   { background-color: var(--accent-color); }
+.card-major   { background-color: #dc3545; }
+.card-recent  { background-color: var(--secondary-color); color: var(--dark-green); }
 
-  .sidebar .nav-link.disabled {
-    color: var(--secondary-color) !important;
-    opacity: 0.6;
-    cursor: not-allowed;
-    pointer-events: none;
-    background-color: rgba(208, 216, 195, 0.3);
-  }
-  .sidebar .nav-link.disabled:hover {
-    background-color: rgba(208, 216, 195, 0.3) !important;
-    color: var(--secondary-color) !important;
-    transform: none;
-  }
-  .sidebar .nav-link.disabled i {
-    opacity: 0.5;
-  }
+/* Table Head */
+.table thead {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+.table thead th {
+  border-bottom: 2px solid var(--accent-color);
+  font-weight: 600;
+}
 
-  /* Violation cards */
-  .violation-card {
-    border-left: 4px solid;
-    transition: all 0.3s ease;
-    cursor: pointer;
-  }
-  .violation-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(1, 68, 33, 0.15);
-    border-left-width: 6px;
-  }
-  .violation-minor { border-left-color: #28a745; }
-  .violation-major { border-left-color: #ffc107; }
-  .violation-critical { border-left-color: #dc3545; }
+/* Table row hover */
+.table-hover tbody tr:hover {
+  background-color: var(--light-green);
+  color: var(--dark-green);
+}
 
-  .badge-violation {
-    font-size: 0.75rem;
-    padding: 0.4em 0.8em;
-    transition: all 0.2s ease;
-  }
-  .badge-violation:hover {
-    transform: scale(1.05);
-  }
-  
-  /* Card hover effects */
-  .card {
-    transition: all 0.3s ease;
-  }
-  .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(1, 68, 33, 0.1);
-  }
-  
-  /* Summary card hover effects */
-  .card-summary {
-    transition: all 0.3s ease;
-    cursor: pointer;
-  }
-  .card-summary:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-  }
+/* Buttons */
+.btn-outline-primary {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  transition: all 0.3s ease;
+}
+.btn-outline-primary:hover {
+  background-color: var(--primary-color);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(1, 68, 33, 0.2);
+}
+.btn-outline-primary:active {
+  transform: translateY(0);
+}
+
+/* Card hover effects */
+.card {
+  transition: all 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(1, 68, 33, 0.1);
+}
+
+/* Summary card hover effects */
+.card-summary {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.card-summary:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}

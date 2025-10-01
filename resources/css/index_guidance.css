@@ -1,138 +1,144 @@
 /* Clean Color Palette - Matching Landing Page */
 :root {
-      --primary-color: #2B7A3B;      /* Rich green from logo shield */
-      --secondary-color: #4CAF50;     /* Lighter green from logo text */
-      --accent-color: #1B5E20;       /* Darker green for emphasis */
-      --light-green: #E8F5E9;        /* Very light green for subtle backgrounds */
-      --dark-green: #0D4F14;         /* Deep green for text */
-      --white: #FFFFFF;              /* Pure white for clean backgrounds */
-      --light-gray: #F8F9FA;         /* Light gray for subtle sections */
-      --border-gray: #E0E0E0;        /* Light border color */
-      --text-gray: #424242;          /* Professional gray for text */
-    }
-    body {
-      font-family: 'Nunito', sans-serif;
-      background-color: var(--white);
-      color: var(--text-gray);
-      line-height: 1.6;
-    }
-    /* Sidebar */
-    .sidebar {
-      background-color: var(--white);
-      border-right: 1px solid var(--border-gray);
-      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
-      min-height: 100vh;
-    }
+  --primary-color: #2B7A3B;      /* Rich green from logo shield */
+  --secondary-color: #4CAF50;     /* Lighter green from logo text */
+  --accent-color: #1B5E20;        /* Darker green for emphasis */
+  --light-green: #E8F5E9;        /* Very light green for subtle backgrounds */
+  --dark-green: #0D4F14;         /* Deep green for text */
+  --white: #FFFFFF;              /* Pure white for clean backgrounds */
+  --light-gray: #F8F9FA;         /* Light gray for subtle sections */
+  --border-gray: #E0E0E0;        /* Light border color */
+  --text-gray: #424242;          /* Professional gray for text */
+}
 
-    /* Sidebar Logo */
-    .sidebar-logo {
-      width: 160px;
-      height: auto;
-      max-width: 100%;
-      border-radius: 8px;
-      transition: all 0.3s ease;
-    }
+body {
+  font-family: 'Nunito', sans-serif;
+  background-color: var(--white);
+  color: var(--text-gray);
+  line-height: 1.6;
+}
 
-    .sidebar-logo:hover {
-      transform: scale(1.01);
-    }
-    .sidebar .nav-link {
-      color: var(--primary-color);
-      font-weight: 600;
-      padding: .75rem 1rem;
-      border-radius: .25rem;
-      transition: all 0.3s ease;
-      margin-bottom: 0.25rem;
-    }
-    .sidebar .nav-link:hover {
-      background-color: var(--light-green);
-      color: var(--primary-color);
-      transform: translateX(5px);
-      box-shadow: 0 2px 8px rgba(43, 122, 59, 0.1);
-    }
-    .sidebar .nav-link.active {
-      background-color: var(--primary-color);
-      color: var(--white);
-      box-shadow: 0 2px 4px rgba(43, 122, 59, 0.2);
-    }
-    .sidebar .nav-link.active:hover {
-      background-color: var(--accent-color);
-      color: var(--white);
-      transform: translateX(5px);
-      box-shadow: 0 4px 12px rgba(43, 122, 59, 0.3);
-    }
-    /* Section Title */
-    .section-title {
-      color: var(--primary-color);
-      font-weight: 700;
-      margin-bottom: 1rem;
-    }
-    /* Summary Cards */
-    .card-summary { color: #fff; }
-    .card-students    { background-color: var(--primary-color); }
-    .card-facerec     { background-color: var(--accent-color); }
-    .card-violations  { background-color: var(--dark-green); }
-    .card-counsel     { background-color: var(--secondary-color); color: var(--dark-green); }
-    .card-reports     { background-color: #4a4a4a; }
-    /* Tables */
-    .table thead {
-      background-color: var(--primary-color);
-      color: #fff;
-    }
-    /* Buttons */
-    .btn-outline-primary {
-      color: var(--primary-color);
-      border-color: var(--primary-color);
-    }
-    .btn-outline-primary:hover {
-      background-color: var(--primary-color);
-      color: #fff;
-    }
+/* Sidebar */
+.sidebar {
+  background-color: var(--white);
+  border-right: 1px solid var(--border-gray);
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+  min-height: 100vh;
+}
 
-    .sidebar .nav-link.disabled {
-      color: var(--secondary-color) !important;
-      opacity: 0.6;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
+/* Sidebar Logo */
+.sidebar-logo {
+  width: 160px;
+  height: auto;
+  max-width: 100%;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
 
-    .sidebar .nav-link.disabled:hover {
-      background-color: transparent !important;
-      color: var(--secondary-color) !important;
-    }
+.sidebar-logo:hover {
+  transform: scale(1.01);
+}
 
-    .sidebar .nav-link.disabled i {
-      opacity: 0.5;
-    }
+.sidebar .nav-link {
+  color: var(--primary-color);
+  font-weight: 600;
+  padding: .75rem 1rem;
+  border-radius: .25rem;
+  transition: all 0.3s ease;
+  margin-bottom: 0.25rem;
+}
 
-    /* User info in sidebar */
-    .user-info {
-      background-color: var(--primary-color);
-      color: white;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border-radius: 0.5rem;
-    }
+.sidebar .nav-link:hover {
+  background-color: var(--light-green);
+  color: var(--primary-color);
+  transform: translateX(5px);
+  box-shadow: 0 2px 8px rgba(43, 122, 59, 0.1);
+}
 
-    .user-info .user-name {
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-    }
+.sidebar .nav-link.active {
+  background-color: var(--primary-color);
+  color: var(--white);
+  box-shadow: 0 2px 4px rgba(43, 122, 59, 0.2);
+}
 
-    .user-info .user-role {
-      font-size: 0.875rem;
-      opacity: 0.9;
-    }
+.sidebar .nav-link.active:hover {
+  background-color: var(--accent-color);
+  color: var(--white);
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(43, 122, 59, 0.3);
+}
 
-    /* Logout button */
-    .btn-logout {
-      background-color: #dc3545;
-      border-color: #dc3545;
-      color: white;
-    }
+/* Section Title */
+.section-title {
+  color: var(--primary-color);
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
 
-    .btn-logout:hover {
-      background-color: #c82333;
-      border-color: #bd2130;
-      color: white;
-    }
+/* Summary Cards */
+.card-summary { color: #fff; }
+.card-violations  { background-color: var(--dark-green); }
+.card-counsel     { background-color: var(--secondary-color); color: var(--dark-green); }
+
+/* Tables */
+.table thead {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+/* Buttons */
+.btn-outline-primary {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+.btn-outline-primary:hover {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.sidebar .nav-link.disabled {
+  color: var(--secondary-color) !important;
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.sidebar .nav-link.disabled:hover {
+  background-color: transparent !important;
+  color: var(--secondary-color) !important;
+}
+
+.sidebar .nav-link.disabled i {
+  opacity: 0.5;
+}
+
+/* User info in sidebar */
+.user-info {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+}
+
+.user-info .user-name {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.user-info .user-role {
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+/* Logout button */
+.btn-logout {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
+.btn-logout:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+  color: white;
+}

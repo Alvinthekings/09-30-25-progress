@@ -264,14 +264,16 @@ class GuidanceDisciplineController extends Controller
     {
         $validatedData = $request->validate([
             'student_id' => 'required|exists:students,id',
-            'violation_type' => 'required|string|in:late,uniform,misconduct,academic,other',
+            //'violation_type' => 'required|string|in:late,uniform,misconduct,academic,other',
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'severity' => 'required|in:minor,major,severe',
+            'major_category' => 'nullable|string',
             'violation_date' => 'required|date',
             'violation_time' => 'nullable',
             'location' => 'nullable|string|max:255',
-            'witnesses' => 'nullable|string',
+            'witnesses' => 'nullable|array',
+            'witnesses.*' => 'string',
             'evidence' => 'nullable|string',
             'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
         ]);
@@ -281,7 +283,7 @@ class GuidanceDisciplineController extends Controller
         if (!$guidanceRecord) {
             return back()->withErrors(['error' => 'You do not have permission to report violations.']);
         }
-        
+
         // Process violation time to ensure proper format
         if (isset($validatedData['violation_time']) && $validatedData['violation_time']) {
             $time = $validatedData['violation_time'];
@@ -297,8 +299,8 @@ class GuidanceDisciplineController extends Controller
 
         // Process witnesses if provided
         if ($request->witnesses) {
-            $witnesses = array_filter(explode("\n", $request->witnesses));
-            $validatedData['witnesses'] = $witnesses;
+            // Convert all witnesses to strings to satisfy validation
+            $validatedData['witnesses'] = array_map('strval', array_filter($request->witnesses));
         }
 
         // Handle file uploads
@@ -360,25 +362,27 @@ class GuidanceDisciplineController extends Controller
 
         
         try {
-            $validatedData = $request->validate([
-                'student_id' => 'required|exists:students,id',
-                'violation_type' => 'required|string|in:late,uniform,misconduct,academic,other',
-                'title' => 'required|string|max:255',
-                'description' => 'required|string',
-                'severity' => 'required|in:minor,major,severe',
-                'violation_date' => 'required|date',
-                'violation_time' => 'nullable',
-                'location' => 'nullable|string|max:255',
-                'witnesses' => 'nullable',
-                'evidence' => 'nullable|string',
-                'status' => 'required|in:pending,investigating,resolved,dismissed',
-                'resolution' => 'nullable|string',
-                'student_statement' => 'nullable|string',
-                'disciplinary_action' => 'nullable|string',
-                'parent_notified' => 'nullable|boolean',
-                'notes' => 'nullable|string',
-                'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
-            ]);
+        $validatedData = $request->validate([
+            'student_id' => 'required|exists:students,id',
+            //'violation_type' => 'required|string|in:late,uniform,misconduct,academic,other',
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'severity' => 'required|in:minor,major,severe',
+            'major_category' => 'nullable|string',
+            'violation_date' => 'required|date',
+            'violation_time' => 'nullable',
+            'location' => 'nullable|string|max:255',
+            'witnesses' => 'nullable|array',
+            'witnesses.*' => 'string',
+            'evidence' => 'nullable|string',
+            'status' => 'required|in:pending,investigating,resolved,dismissed',
+            'resolution' => 'nullable|string',
+            'student_statement' => 'nullable|string',
+            'disciplinary_action' => 'nullable|string',
+            'parent_notified' => 'nullable|boolean',
+            'notes' => 'nullable|string',
+            'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
+        ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
