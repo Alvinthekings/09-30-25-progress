@@ -249,10 +249,13 @@ Route::prefix('guidance')->name('guidance.')->group(function () {
         Route::prefix('students')->name('students.')->group(function () {
             Route::get('/', [GuidanceDisciplineController::class, 'studentsIndex'])
                 ->name('index');
-            
+
+            Route::get('/search', [GuidanceDisciplineController::class, 'searchStudents'])
+                ->name('search');
+
             Route::get('/{student}', [GuidanceDisciplineController::class, 'showStudent'])
                 ->name('show');
-                
+
             Route::get('/{student}/info', [GuidanceDisciplineController::class, 'getStudentInfo'])
                 ->name('info');
         });

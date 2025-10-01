@@ -227,6 +227,30 @@ class GuidanceDisciplineController extends Controller
         return response()->json($student);
     }
 
+    /**
+     * Search students by name for AJAX autocomplete
+     */
+    public function searchStudents(Request $request)
+    {
+        $query = $request->get('q', '');
+
+        if (strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        $students = Student::where(function($q) use ($query) {
+            $q->where('first_name', 'LIKE', "%{$query}%")
+              ->orWhere('last_name', 'LIKE', "%{$query}%")
+              ->orWhere('student_id', 'LIKE', "%{$query}%");
+        })
+        ->select('id', 'first_name', 'last_name', 'student_id', 'grade_level', 'section')
+        ->orderBy('last_name', 'asc')
+        ->limit(10)
+        ->get();
+
+        return response()->json($students);
+    }
+
     // VIOLATIONS MANAGEMENT METHODS
 
     /**

@@ -199,15 +199,14 @@
 
               <div class="mb-3">
                 <label class="form-label fw-bold">Student</label>
-                <select class="form-select" id="violationStudentSelect" name="student_id" required>
-                  <option value="">Select Student</option>
-                  @foreach($students as $student)
-                    <option value="{{ $student->id }}">
-                      {{ $student->first_name }} {{ $student->last_name }}
-                      ({{ $student->student_id ?: 'No ID' }})
-                    </option>
-                  @endforeach
-                </select>
+                <div class="position-relative">
+                  <input type="text" class="form-control" id="violationStudentSearch" placeholder="Type student name or ID..." autocomplete="off" required>
+                  <input type="hidden" id="violationStudentId" name="student_id" required>
+                  <div id="studentSuggestions" class="suggestions-list" style="display: none;">
+                    <!-- Suggestions will be populated here -->
+                  </div>
+                </div>
+                <small class="text-muted">Start typing to search for students</small>
               </div>
 
               <div class="mb-3">

@@ -541,25 +541,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listeners for dropdown changes
     if (severitySelect) {
         severitySelect.addEventListener('change', function() {
-            const studentSelect = document.getElementById('violationStudentSelect');
             if (this.value === 'major') {
                 majorCategoryWrapper.classList.remove('d-none');
                 // Reset and update offenses when switching to major
                 majorCategorySelect.value = '';
                 updateOffenseDropdown();
-                // Disable student field for major offenses
-                if (studentSelect) {
-                    studentSelect.disabled = true;
-                    studentSelect.style.opacity = '0.6';
-                }
             } else {
                 majorCategoryWrapper.classList.add('d-none');
                 updateOffenseDropdown();
-                // Enable student field for minor offenses
-                if (studentSelect) {
-                    studentSelect.disabled = false;
-                    studentSelect.style.opacity = '1';
-                }
             }
         });
     }
@@ -651,11 +640,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const button = event.relatedTarget;
             const studentId = button ? button.getAttribute('data-student-id') : null;
 
-            if (studentId) {
-                document.getElementById('violationStudentSelect').value = studentId;
-            } else {
-                document.getElementById('violationStudentSelect').value = '';
-            }
+            // Reset student search fields
+            const studentSearchInput = document.getElementById('violationStudentSearch');
+            const studentIdInput = document.getElementById('violationStudentId');
+            const studentSuggestions = document.getElementById('studentSuggestions');
+
+            if (studentSearchInput) studentSearchInput.value = '';
+            if (studentIdInput) studentIdInput.value = '';
+            if (studentSuggestions) studentSuggestions.style.display = 'none';
 
             // Reset form
             if (severitySelect) severitySelect.value = '';
@@ -863,9 +855,136 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     [searchInput, statusFilter, severityFilter, typeFilter, dateFilter].forEach(element => {
-      element.addEventListener('input', filterTable);
-      element.addEventListener('change', filterTable);
+      if (element) {
+        element.addEventListener('input', filterTable);
+        element.addEventListener('change', filterTable);
+      }
     });
+
+    // Student search functionality for violation modal
+    const studentSearchInput = document.getElementById('violationStudentSearch');
+    const studentIdInput = document.getElementById('violationStudentId');
+    const studentSuggestions = document.getElementById('studentSuggestions');
+
+    let searchTimeout;
+    let currentFocus = -1;
+
+    function debounce(func, wait) {
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(searchTimeout);
+          func(...args);
+        };
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(later, wait);
+      };
+    }
+
+    function searchStudents(query) {
+      if (query.length < 2) {
+        studentSuggestions.style.display = 'none';
+        return;
+      }
+
+      fetch(`/guidance/students/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(students => {
+          displaySuggestions(students);
+        })
+        .catch(error => {
+          console.error('Error searching students:', error);
+          studentSuggestions.style.display = 'none';
+        });
+    }
+
+    function displaySuggestions(students) {
+      if (students.length === 0) {
+        studentSuggestions.style.display = 'none';
+        return;
+      }
+
+      const suggestionsHtml = students.map(student => `
+        <div class="suggestion-item" data-student-id="${student.id}" data-student-name="${student.first_name} ${student.last_name} (${student.student_id || 'No ID'})">
+          <div class="suggestion-name">${student.first_name} ${student.last_name}</div>
+          <div class="suggestion-details">ID: ${student.student_id || 'No ID'} | Grade: ${student.grade_level || 'N/A'} | Section: ${student.section || 'N/A'}</div>
+        </div>
+      `).join('');
+
+      studentSuggestions.innerHTML = suggestionsHtml;
+      studentSuggestions.style.display = 'block';
+      currentFocus = -1;
+    }
+
+    function selectStudent(studentId, studentName) {
+      studentSearchInput.value = studentName;
+      studentIdInput.value = studentId;
+      studentSuggestions.style.display = 'none';
+      currentFocus = -1;
+    }
+
+    const debouncedSearch = debounce(searchStudents, 300);
+
+    if (studentSearchInput) {
+      studentSearchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        debouncedSearch(query);
+      });
+
+      studentSearchInput.addEventListener('keydown', function(e) {
+        const items = studentSuggestions.querySelectorAll('.suggestion-item');
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          currentFocus = currentFocus < items.length - 1 ? currentFocus + 1 : 0;
+          updateFocus(items);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          currentFocus = currentFocus > 0 ? currentFocus - 1 : items.length - 1;
+          updateFocus(items);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (currentFocus >= 0 && items[currentFocus]) {
+            const item = items[currentFocus];
+            const studentId = item.getAttribute('data-student-id');
+            const studentName = item.getAttribute('data-student-name');
+            selectStudent(studentId, studentName);
+          }
+        } else if (e.key === 'Escape') {
+          studentSuggestions.style.display = 'none';
+          currentFocus = -1;
+        }
+      });
+
+      // Click outside to close suggestions
+      document.addEventListener('click', function(e) {
+        if (!studentSearchInput.contains(e.target) && !studentSuggestions.contains(e.target)) {
+          studentSuggestions.style.display = 'none';
+          currentFocus = -1;
+        }
+      });
+    }
+
+    if (studentSuggestions) {
+      studentSuggestions.addEventListener('click', function(e) {
+        const item = e.target.closest('.suggestion-item');
+        if (item) {
+          const studentId = item.getAttribute('data-student-id');
+          const studentName = item.getAttribute('data-student-name');
+          selectStudent(studentId, studentName);
+        }
+      });
+    }
+
+    function updateFocus(items) {
+      // Remove previous focus
+      items.forEach(item => item.classList.remove('active'));
+
+      // Add focus to current item
+      if (items[currentFocus]) {
+        items[currentFocus].classList.add('active');
+        items[currentFocus].scrollIntoView({ block: 'nearest' });
+      }
+    }
   });
 
 // Global functions for CRUD operations (must be in global scope)
