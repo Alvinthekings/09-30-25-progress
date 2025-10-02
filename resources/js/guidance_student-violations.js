@@ -1451,7 +1451,8 @@ function initializeIncidentStudentSearch() {
     }
 }
 
-// Function to show incident form for major offenses
+const titleToSeverityMap = window.titleToSeverityMap || {};
+
 function showIncidentForm() {
     // Get violation data
     const violationTitle = getViolationTitle();
