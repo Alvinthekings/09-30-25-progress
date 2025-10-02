@@ -464,6 +464,30 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (existingCustomInput) {
                 existingCustomInput.remove();
             }
+
+            // Change submit button text and behavior based on severity
+            const submitBtn = document.querySelector('#recordViolationModal button[type="submit"]');
+            const studentSearchInput = document.getElementById('violationStudentSearch');
+            if (submitBtn) {
+                const severity = titleToSeverityMap[selectedTitle]?.severity;
+                if (severity === 'major') {
+                    submitBtn.textContent = 'Proceed with the incident form';
+                    submitBtn.type = 'button';
+                    submitBtn.onclick = () => showIncidentForm();
+                    // Disable student search input for major violations
+                    if (studentSearchInput) {
+                        studentSearchInput.disabled = true;
+                    }
+                } else {
+                    submitBtn.textContent = 'Submit Violation';
+                    submitBtn.type = 'submit';
+                    submitBtn.onclick = null;
+                    // Enable student search input for minor violations
+                    if (studentSearchInput) {
+                        studentSearchInput.disabled = false;
+                    }
+                }
+            }
         });
     }
 
@@ -544,13 +568,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Form submission handler
+    // Form submission handler (only for minor violations now)
     const violationForm = document.getElementById('recordViolationForm');
     if (violationForm) {
         violationForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            if (window.selectedStudents.length === 0) {
+            if (!window.selectedStudents || window.selectedStudents.length === 0) {
                 alert('Please select at least one student for the violation.');
                 return;
             }
@@ -590,10 +614,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     const formData = new FormData();
 
                     // Manually append all required fields from the form
+                    const title = getViolationTitle();
+                    const severity = titleToSeverityMap[title]?.severity || 'minor';
+                    const category = titleToSeverityMap[title]?.category || null;
                     formData.append('student_id', student.id);
-                    formData.append('title', getViolationTitle());
+                    formData.append('title', title);
                     formData.append('violation_date', dateEl.value);
                     formData.append('violation_time', document.getElementById('violationTime').value);
+                    formData.append('severity', severity);
+                    formData.append('major_category', category);
                     formData.append('status', 'pending');
 
                     console.log('Submitting violation data for student:', student.name, {
@@ -1288,13 +1317,145 @@ window.openViolationModal = function(student) {
     modal.show();
 }
 
+// Helper functions for incident form
+function updateIncidentSelectedStudentsDisplay() {
+    const selectedStudentsContainer = document.getElementById('incidentSelectedStudentsContainer');
+    if (selectedStudentsContainer) {
+        selectedStudentsContainer.innerHTML = window.incidentSelectedStudents.map(student => `
+            <div class="badge bg-primary me-2 mb-2 d-inline-flex align-items-center">
+                ${student.name}
+                <button type="button" class="btn-close btn-close-white ms-2" onclick="removeIncidentSelectedStudent(${student.id})" style="font-size: 0.6em;"></button>
+            </div>
+        `).join('');
+    }
+}
+
+window.removeIncidentSelectedStudent = function(studentId) {
+    const index = window.incidentSelectedStudents.findIndex(s => s.id === studentId);
+    if (index > -1) {
+        window.incidentSelectedStudents.splice(index, 1);
+        updateIncidentSelectedStudentsDisplay();
+    }
+};
+
+function initializeIncidentStudentSearch() {
+    const incidentStudentSearch = document.getElementById('incidentStudentSearch');
+    const incidentStudentSuggestions = document.getElementById('incidentStudentSuggestions');
+
+    let incidentSearchTimeout;
+    let incidentCurrentFocus = -1;
+
+    function incidentSearchStudents(query) {
+        if (query.length < 2) {
+            incidentStudentSuggestions.style.display = 'none';
+            return;
+        }
+
+        fetch(`/guidance/students/search?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(students => {
+                incidentDisplaySuggestions(students);
+            })
+            .catch(error => {
+                console.error('Error searching students:', error);
+                incidentStudentSuggestions.style.display = 'none';
+            });
+    }
+
+    function incidentDisplaySuggestions(students) {
+        if (students.length === 0) {
+            incidentStudentSuggestions.style.display = 'none';
+            return;
+        }
+
+        const suggestionsHtml = students.map(student => `
+            <div class="suggestion-item" data-student-id="${student.id}" data-student-name="${student.first_name} ${student.last_name} (${student.student_id || 'No ID'})">
+                <div class="suggestion-name">${student.first_name} ${student.last_name}</div>
+                <div class="suggestion-details">ID: ${student.student_id || 'No ID'} | Grade: ${student.grade_level || 'N/A'} | Section: ${student.section || 'N/A'}</div>
+            </div>
+        `).join('');
+
+        incidentStudentSuggestions.innerHTML = suggestionsHtml;
+        incidentStudentSuggestions.style.display = 'block';
+        incidentCurrentFocus = -1;
+    }
+
+    function incidentSelectStudent(studentId, studentName) {
+        if (!window.incidentSelectedStudents.some(s => s.id === studentId)) {
+            window.incidentSelectedStudents.push({ id: studentId, name: studentName });
+            updateIncidentSelectedStudentsDisplay();
+        }
+        incidentStudentSearch.value = '';
+        incidentStudentSuggestions.style.display = 'none';
+        incidentCurrentFocus = -1;
+    }
+
+    function incidentUpdateFocus(items) {
+        items.forEach(item => item.classList.remove('active'));
+        if (items[incidentCurrentFocus]) {
+            items[incidentCurrentFocus].classList.add('active');
+            items[incidentCurrentFocus].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    const incidentDebouncedSearch = debounce(incidentSearchStudents, 300);
+
+    if (incidentStudentSearch) {
+        incidentStudentSearch.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            incidentDebouncedSearch(query);
+        });
+
+        incidentStudentSearch.addEventListener('keydown', function(e) {
+            const items = incidentStudentSuggestions.querySelectorAll('.suggestion-item');
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                incidentCurrentFocus = incidentCurrentFocus < items.length - 1 ? incidentCurrentFocus + 1 : 0;
+                incidentUpdateFocus(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                incidentCurrentFocus = incidentCurrentFocus > 0 ? incidentCurrentFocus - 1 : items.length - 1;
+                incidentUpdateFocus(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (incidentCurrentFocus >= 0 && items[incidentCurrentFocus]) {
+                    const item = items[incidentCurrentFocus];
+                    const studentId = item.getAttribute('data-student-id');
+                    const studentName = item.getAttribute('data-student-name');
+                    incidentSelectStudent(studentId, studentName);
+                }
+            } else if (e.key === 'Escape') {
+                incidentStudentSuggestions.style.display = 'none';
+                incidentCurrentFocus = -1;
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!incidentStudentSearch.contains(e.target) && !incidentStudentSuggestions.contains(e.target)) {
+                incidentStudentSuggestions.style.display = 'none';
+                incidentCurrentFocus = -1;
+            }
+        });
+    }
+
+    if (incidentStudentSuggestions) {
+        incidentStudentSuggestions.addEventListener('click', function(e) {
+            const item = e.target.closest('.suggestion-item');
+            if (item) {
+                const studentId = item.getAttribute('data-student-id');
+                const studentName = item.getAttribute('data-student-name');
+                incidentSelectStudent(studentId, studentName);
+            }
+        });
+    }
+}
+
 // Function to show incident form for major offenses
 function showIncidentForm() {
     // Get violation data
-    const reportedStudent = document.getElementById('violationStudentSearch').value || '';
-
     const violationTitle = getViolationTitle();
-    const violationDescription = document.getElementById('violationDescription').value;
+    const violationDescription = ''; // No description field in the current form
 
     // Create modal
     const modal = document.createElement('div');
@@ -1317,7 +1478,7 @@ function showIncidentForm() {
                                 <!-- Suggestions will be populated here -->
                               </div>
                             </div>
-                            <div id="selectedStudentsContainer" class="mt-2">
+                            <div id="incidentSelectedStudentsContainer" class="mt-2">
                               <!-- Selected students will be added here -->
                             </div>
                             <small class="text-muted">Add multiple students involved in the incident</small>
@@ -1357,6 +1518,15 @@ function showIncidentForm() {
     `;
     document.body.appendChild(modal);
 
+    // Initialize incident selected students from violation form
+    window.incidentSelectedStudents = [...window.selectedStudents];
+
+    // Update display
+    updateIncidentSelectedStudentsDisplay();
+
+    // Initialize student search functionality for incident form
+    initializeIncidentStudentSearch();
+
     // Add submit handler
     const incidentForm = document.getElementById('incidentForm');
     incidentForm.addEventListener('submit', async function(e) {
@@ -1388,9 +1558,12 @@ function showIncidentForm() {
                 // Manually append all required fields from the form
                 formData.append('student_id', student.id);
                 formData.append('title', getViolationTitle());
+                const violationTitle = getViolationTitle();
+                const severity = titleToSeverityMap[violationTitle]?.severity || 'major';
+                const category = titleToSeverityMap[violationTitle]?.category || null;
                 formData.append('description', details.trim());
-                formData.append('severity', document.getElementById('violationSeverity').value);
-                formData.append('major_category', document.getElementById('majorCategory').value);
+                formData.append('severity', severity);
+                formData.append('major_category', category);
                 formData.append('violation_date', date);
                 formData.append('violation_time', time);
                 formData.append('status', 'pending');
@@ -1464,140 +1637,7 @@ function showIncidentForm() {
         }
     });
 
-    // Add student search functionality for incident form
-    const incidentStudentSearch = document.getElementById('incidentStudentSearch');
-    const incidentStudentSuggestions = document.getElementById('incidentStudentSuggestions');
-    const selectedStudentsContainer = document.getElementById('selectedStudentsContainer');
 
-    let incidentSearchTimeout;
-    let incidentCurrentFocus = -1;
-    window.incidentSelectedStudents = [];
-
-    function incidentSearchStudents(query) {
-      if (query.length < 2) {
-        incidentStudentSuggestions.style.display = 'none';
-        return;
-      }
-
-      fetch(`/guidance/students/search?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
-        .then(students => {
-          incidentDisplaySuggestions(students);
-        })
-        .catch(error => {
-          console.error('Error searching students:', error);
-          incidentStudentSuggestions.style.display = 'none';
-        });
-    }
-
-    function incidentDisplaySuggestions(students) {
-      if (students.length === 0) {
-        incidentStudentSuggestions.style.display = 'none';
-        return;
-      }
-
-      const suggestionsHtml = students.map(student => `
-        <div class="suggestion-item" data-student-id="${student.id}" data-student-name="${student.first_name} ${student.last_name} (${student.student_id || 'No ID'})">
-          <div class="suggestion-name">${student.first_name} ${student.last_name}</div>
-          <div class="suggestion-details">ID: ${student.student_id || 'No ID'} | Grade: ${student.grade_level || 'N/A'} | Section: ${student.section || 'N/A'}</div>
-        </div>
-      `).join('');
-
-      incidentStudentSuggestions.innerHTML = suggestionsHtml;
-      incidentStudentSuggestions.style.display = 'block';
-      incidentCurrentFocus = -1;
-    }
-
-    function incidentSelectStudent(studentId, studentName) {
-      if (!window.incidentSelectedStudents.some(s => s.id === studentId)) {
-        window.incidentSelectedStudents.push({ id: studentId, name: studentName });
-        updateSelectedStudentsDisplay();
-      }
-      incidentStudentSearch.value = '';
-      incidentStudentSuggestions.style.display = 'none';
-      incidentCurrentFocus = -1;
-    }
-
-    function updateSelectedStudentsDisplay() {
-      selectedStudentsContainer.innerHTML = window.incidentSelectedStudents.map(student => `
-        <div class="badge bg-primary me-2 mb-2 d-inline-flex align-items-center">
-          ${student.name}
-          <button type="button" class="btn-close btn-close-white ms-2" onclick="removeSelectedStudent(${student.id})" style="font-size: 0.6em;"></button>
-        </div>
-      `).join('');
-    }
-
-    window.removeSelectedStudent = function(studentId) {
-      const index = window.incidentSelectedStudents.findIndex(s => s.id === studentId);
-      if (index > -1) {
-        window.incidentSelectedStudents.splice(index, 1);
-        updateSelectedStudentsDisplay();
-      }
-    };
-
-    const incidentDebouncedSearch = debounce(incidentSearchStudents, 300);
-
-    if (incidentStudentSearch) {
-      incidentStudentSearch.addEventListener('input', function(e) {
-        const query = e.target.value.trim();
-        incidentDebouncedSearch(query);
-      });
-
-      incidentStudentSearch.addEventListener('keydown', function(e) {
-        const items = incidentStudentSuggestions.querySelectorAll('.suggestion-item');
-
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          incidentCurrentFocus = incidentCurrentFocus < items.length - 1 ? incidentCurrentFocus + 1 : 0;
-          incidentUpdateFocus(items);
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          incidentCurrentFocus = incidentCurrentFocus > 0 ? incidentCurrentFocus - 1 : items.length - 1;
-          incidentUpdateFocus(items);
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          if (incidentCurrentFocus >= 0 && items[incidentCurrentFocus]) {
-            const item = items[incidentCurrentFocus];
-            const studentId = item.getAttribute('data-student-id');
-            const studentName = item.getAttribute('data-student-name');
-            incidentSelectStudent(studentId, studentName);
-          }
-        } else if (e.key === 'Escape') {
-          incidentStudentSuggestions.style.display = 'none';
-          incidentCurrentFocus = -1;
-        }
-      });
-
-      // Click outside to close suggestions
-      document.addEventListener('click', function(e) {
-        if (!incidentStudentSearch.contains(e.target) && !incidentStudentSuggestions.contains(e.target)) {
-          incidentStudentSuggestions.style.display = 'none';
-          incidentCurrentFocus = -1;
-        }
-      });
-    }
-
-    if (incidentStudentSuggestions) {
-      incidentStudentSuggestions.addEventListener('click', function(e) {
-        const item = e.target.closest('.suggestion-item');
-        if (item) {
-          const studentId = item.getAttribute('data-student-id');
-          const studentName = item.getAttribute('data-student-name');
-          incidentSelectStudent(studentId, studentName);
-        }
-      });
-    }
-
-    function incidentUpdateFocus(items) {
-      // Remove previous focus
-      items.forEach(item => item.classList.remove('active'));
-
-      // Add focus to current item
-      if (items[incidentCurrentFocus]) {
-        items[incidentCurrentFocus].classList.add('active');
-        items[incidentCurrentFocus].scrollIntoView({ block: 'nearest' });
-      }
-    }
 
     // Show modal
     window.ModalManager.show('incidentFormModal');
@@ -1622,7 +1662,7 @@ window.generateIncidentForm = function() {
     const violation = document.getElementById('incidentViolation').value;
 
     // Get selected students
-    const selectedStudentsText = Array.from(document.querySelectorAll('#selectedStudentsContainer .badge'))
+    const selectedStudentsText = Array.from(document.querySelectorAll('#incidentSelectedStudentsContainer .badge'))
         .map(badge => badge.textContent.trim())
         .join(', ');
 
@@ -1774,7 +1814,7 @@ window.generateIncidentForm = function() {
     printWindow.document.write(printContent);
     printWindow.document.close();
 
-    // Wait for content to load then print
+    // Wait for content to load then priFincnt
     printWindow.onload = function() {
         printWindow.print();
         // Optionally close the print window after printing

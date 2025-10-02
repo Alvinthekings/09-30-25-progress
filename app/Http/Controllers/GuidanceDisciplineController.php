@@ -19,6 +19,89 @@ class GuidanceDisciplineController extends Controller
         // No need to create roles/permissions here
     }
 
+    /**
+     * Determine severity and category based on violation title
+     */
+    private function determineSeverity($title)
+    {
+        $offenseOptions = [
+            'minor' => [
+                "Not wearing of prescribed uniform and Improper wearing of school ID",
+                "Unauthorized use of cellphones and other electronic gadgets inside the classroom",
+                "Wearing earrings (for male students) and multiple earrings (for female students)",
+                "Not sporting the prescribed haircut",
+                "Unauthorized use of electronic gadgets inside the classroom",
+                "Loitering inside the school"
+            ],
+            'major' => [
+                "Category 1" => [
+                    "Borrowing, lending, and tampering of school ID",
+                    "Disrespect to school logo",
+                    "Unauthorized use of school forms",
+                    "Loitering inside the campus",
+                    "Littering inside the campus",
+                    "Eating outside the classroom during class hours",
+                    "Non-observance of Clean As You Go policy",
+                    "Using profane and indecent language",
+                    "Bringing pornographic materials and browsing pornographic sites",
+                    "Smoking, e-cigarettes and similar acts",
+                    "Participating in any form of gambling",
+                    "Threatening fellow students",
+                    "Leaving the school without a valid gate pass",
+                    "Making an alarming fake bomb or fire threat or joke",
+                    "Any offense analogous to the above"
+                ],
+                "Category 2" => [
+                    "Disrespecting the Philippine flag and other national / institutional symbols",
+                    "Vandalism inside the campus",
+                    "Engaging in immodest act such as public display of affection",
+                    "Bringing intoxicating drinks or alcoholic beverages",
+                    "Cheating during examination / acting as accomplice",
+                    "Tampering with test scores",
+                    "Cutting classes",
+                    "Gross scandalous behavior inside/outside the campus",
+                    "Act that malign the good name and reputation of the school",
+                    "Withholding information during formal investigation",
+                    "Habitual disregard to school policies",
+                    "Any offense analogous to the above"
+                ],
+                "Category 3" => [
+                    "Bullying including physical, emotional and cyberbullying",
+                    "Forging the signature of parents/guardian in school documents",
+                    "Forging the signature of teachers or persons in authority",
+                    "Assaulting or showing disrespect to teachers or persons in authority",
+                    "Disrespectful or abusive behavior towards any faculty member",
+                    "Possession, pushing, use of dangerous drugs, deadly weapons or explosives",
+                    "Recruiting or engaging in pseudo fraternities / gangs",
+                    "Engaging in fight and assaulting fellow students",
+                    "Hazing, extortion and engaging in pre-marital sex",
+                    "Deception of school authorities",
+                    "Stealing school or others' personal property",
+                    "Any offense analogous to the above"
+                ]
+            ]
+        ];
+
+        // Check minor offenses first
+        foreach ($offenseOptions['minor'] as $offense) {
+            if (stripos($title, $offense) !== false) {
+                return ['severity' => 'minor', 'major_category' => null];
+            }
+        }
+
+        // Check major offenses by category
+        foreach ($offenseOptions['major'] as $category => $offenses) {
+            foreach ($offenses as $offense) {
+                if (stripos($title, $offense) !== false) {
+                    return ['severity' => 'major', 'major_category' => $category];
+                }
+            }
+        }
+
+        // Default to minor if not found
+        return ['severity' => 'minor', 'major_category' => null];
+    }
+
     // PUBLIC METHODS (No authentication required)
 
     // REMOVED: showPublicGenerator() method
@@ -264,6 +347,7 @@ class GuidanceDisciplineController extends Controller
         // }
 
         $violations = Violation::with(['student', 'reportedBy', 'resolvedBy'])
+            ->where('severity', 'major')
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
@@ -272,10 +356,10 @@ class GuidanceDisciplineController extends Controller
             ->get();
 
         $stats = [
-            'pending' => Violation::where('status', 'pending')->count(),
-            'investigating' => Violation::where('status', 'investigating')->count(),
-            'resolved' => Violation::where('status', 'resolved')->count(),
-            'severe' => Violation::where('severity', 'severe')->count(),
+            'pending' => Violation::where('status', 'pending')->where('severity', 'major')->count(),
+            'investigating' => Violation::where('status', 'investigating')->where('severity', 'major')->count(),
+            'resolved' => Violation::where('status', 'resolved')->where('severity', 'major')->count(),
+            'major' => Violation::where('severity', 'major')->count(),
         ];
 
         return view('guidancediscipline.student-violations', compact('violations', 'students', 'stats'));
@@ -338,6 +422,13 @@ class GuidanceDisciplineController extends Controller
         }
 
         $validatedData['reported_by'] = $guidanceRecord->id;
+
+        // Auto-determine severity if not provided
+        if (!isset($validatedData['severity']) || empty($validatedData['severity'])) {
+            $severityData = $this->determineSeverity($validatedData['title']);
+            $validatedData['severity'] = $severityData['severity'];
+            $validatedData['major_category'] = $severityData['major_category'];
+        }
 
         $violation = Violation::create($validatedData);
 
@@ -461,6 +552,13 @@ class GuidanceDisciplineController extends Controller
                 }
                 $validatedData['resolved_at'] = now();
             }
+        }
+
+        // Auto-determine severity if not provided
+        if (!isset($validatedData['severity']) || empty($validatedData['severity'])) {
+            $severityData = $this->determineSeverity($validatedData['title']);
+            $validatedData['severity'] = $severityData['severity'];
+            $validatedData['major_category'] = $severityData['major_category'];
         }
 
         $violation->update($validatedData);

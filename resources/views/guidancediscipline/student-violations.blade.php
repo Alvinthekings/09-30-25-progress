@@ -63,8 +63,8 @@
         <div class="card card-summary stats-card h-100" style="background-color: #2d6a3e; color: white;">
           <div class="card-body text-center">
             <i class="ri-error-warning-line display-6 mb-2"></i>
-            <div>Severe Cases</div>
-            <h3>{{ $stats['severe'] ?? 0 }}</h3>
+            <div>Major Cases</div>
+            <h3>{{ $stats['major'] ?? 0 }}</h3>
           </div>
         </div>
       </div>
@@ -124,17 +124,17 @@
                 </td>
                 <td>
                   <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                    <button type="button" class="btn btn-sm btn-outline-primary"
                             onclick="viewViolation({{ $violation->id }})"
                             title="View Details">
                       <i class="ri-eye-line"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                    <button type="button" class="btn btn-sm btn-outline-warning"
                             onclick="editViolation({{ $violation->id }})"
                             title="Edit">
                       <i class="ri-edit-line"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                    <button type="button" class="btn btn-sm btn-outline-danger"
                             onclick="deleteViolation({{ $violation->id }})"
                             title="Delete">
                       <i class="ri-delete-bin-line"></i>

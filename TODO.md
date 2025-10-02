@@ -1,0 +1,3 @@
+- [x] Update GuidanceDisciplineController.php violationsIndex method to add where('severity', 'major') to the violations query
+- [x] Update stats array in violationsIndex to count major violations instead of severe
+- [x] Update student-violations.blade.php to change "Severe Cases" to "Major Cases" in the stats card
