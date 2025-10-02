@@ -200,26 +200,18 @@
               <div class="mb-3">
                 <label class="form-label fw-bold">Student</label>
                 <div class="position-relative">
-                  <input type="text" class="form-control" id="violationStudentSearch" placeholder="Type student name or ID..." autocomplete="off" required>
-                  <input type="hidden" id="violationStudentId" name="student_id" required>
+                  <input type="text" class="form-control" id="violationStudentSearch" placeholder="Type student name or ID..." autocomplete="off">
                   <div id="studentSuggestions" class="suggestions-list" style="display: none;">
                     <!-- Suggestions will be populated here -->
                   </div>
                 </div>
+                <div id="selectedStudentsContainer" class="mt-2">
+                  <!-- Selected students will be added here -->
+                </div>
                 <small class="text-muted">Start typing to search for students</small>
               </div>
 
-              <div class="mb-3">
-                <label class="form-label fw-bold">Severity</label>
-                <input type="text" class="form-control" name="severity" id="violationSeverity" readonly required>
-                <small class="text-muted">Auto-determined based on selected offense</small>
-              </div>
 
-              <div class="mb-3 d-none" id="majorCategoryWrapper">
-                <label class="form-label fw-bold">Major Category</label>
-                <input type="text" class="form-control" name="major_category" id="majorCategory" readonly>
-                <small class="text-muted">Auto-determined for major offenses</small>
-              </div>
             </div>
 
             <div class="col-md-6">
@@ -230,43 +222,14 @@
 
               <div class="mb-3">
                 <label class="form-label fw-bold">Violation Time</label>
-                <input type="time" class="form-control" name="violation_time" value="{{ now()->format('H:i') }}">
+                <input type="time" class="form-control" id="violationTime" name="violation_time" value="{{ now()->format('H:i') }}">
               </div>
 
-              <div class="mb-3">
-                <label class="form-label fw-bold">Location</label>
-                <input type="text" class="form-control" name="location" id="violationLocation" placeholder="e.g., Classroom, Cafeteria, Playground">
-              </div>
 
-              <div class="mb-3">
-                <label class="form-label fw-bold">Witnesses</label>
-                <div id="witnessesContainer">
-                  <div class="input-group mb-2">
-                    <input type="text" class="form-control" name="witnesses[]" placeholder="Witness name">
-                    <button type="button" class="btn btn-outline-secondary" onclick="addWitnessField()">
-                      <i class="ri-add-line"></i>
-                    </button>
-                  </div>
-                </div>
-                <small class="text-muted">Add multiple witnesses if needed</small>
-              </div>
             </div>
           </div>
 
-          <div class="row">
-            <div class="col-12">
-              <div class="mb-3">
-                <label class="form-label fw-bold">Description / Details</label>
-                <textarea class="form-control" name="description" id="violationDescription" rows="3" placeholder="Provide detailed description of the violation..." required></textarea>
-              </div>
 
-              <div class="mb-3">
-                <label class="form-label fw-bold">Attachments</label>
-                <input type="file" class="form-control" name="attachments[]" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" required>
-                <small class="text-muted">You must select at least one file (images, PDFs, documents)</small>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div class="modal-footer">

@@ -139,30 +139,8 @@ window.editViolation = function(violationId) {
                             <label class="form-label fw-bold small">Title</label>
                             <input type="text" class="form-control form-control-sm" id="edit_title" name="title" value="${violation.title || ''}" required>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label fw-bold small">Description</label>
-                            <textarea class="form-control form-control-sm" id="edit_description" name="description" rows="2" required>${violation.description || ''}</textarea>
-                        </div>
                         <div class="row g-2">
-                            <div class="col-6">
-                                <label class="form-label fw-bold small">Severity</label>
-                                <select class="form-select form-select-sm" id="edit_severity" name="severity" required>
-                                    <option value="minor" ${violation.severity === 'minor' ? 'selected' : ''}>Minor</option>
-                                    <option value="major" ${violation.severity === 'major' ? 'selected' : ''}>Major</option>
-                                </select>
-                            </div>
-                            <div class="col-6" id="edit_major_category_wrapper" style="display: ${violation.severity === 'major' ? 'block' : 'none'};">
-                                <label class="form-label fw-bold small">Major Category</label>
-                                <select class="form-select form-select-sm" id="edit_major_category" name="major_category">
-                                    <option value="">-- Select Category --</option>
-                                    <option value="Category 1" ${violation.major_category === 'Category 1' ? 'selected' : ''}>Category 1</option>
-                                    <option value="Category 2" ${violation.major_category === 'Category 2' ? 'selected' : ''}>Category 2</option>
-                                    <option value="Category 3" ${violation.major_category === 'Category 3' ? 'selected' : ''}>Category 3</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row g-2">
-                            <div class="col-6">
+                            <div class="col-12">
                                 <label class="form-label fw-bold small">Status</label>
                                 <select class="form-select form-select-sm" id="edit_status" name="status" required>
                                     <option value="pending" ${violation.status === 'pending' ? 'selected' : ''}>Pending</option>
@@ -170,10 +148,6 @@ window.editViolation = function(violationId) {
                                     <option value="resolved" ${violation.status === 'resolved' ? 'selected' : ''}>Resolved</option>
                                     <option value="dismissed" ${violation.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
                                 </select>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-bold small">Location</label>
-                                <input type="text" class="form-control form-control-sm" id="edit_location" name="location" value="${violation.location || ''}">
                             </div>
                         </div>
                         <div class="row g-2">
@@ -190,27 +164,7 @@ window.editViolation = function(violationId) {
 
                     <!-- Right Column: Investigation & Resolution Details -->
                     <div class="col-lg-6">
-                        <h6 class="mb-3">Investigation Details</h6>
-                        <div class="mb-2">
-                            <label class="form-label fw-bold small">Witnesses</label>
-                            <div id="edit_witnesses_container">
-                                ${(violation.witnesses && Array.isArray(violation.witnesses) && violation.witnesses.length > 0) ? violation.witnesses.map(witness => `
-                                    <div class="input-group input-group-sm mb-1">
-                                        <input type="text" class="form-control" name="witnesses[]" value="${witness}" placeholder="Witness name">
-                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeWitnessField(this)">
-                                            <i class="ri-delete-bin-line"></i>
-                                        </button>
-                                    </div>
-                                `).join('') : `
-                                    <div class="input-group input-group-sm mb-1">
-                                        <input type="text" class="form-control" name="witnesses[]" placeholder="Witness name">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addWitnessField()">
-                                            <i class="ri-add-line"></i>
-                                        </button>
-                                    </div>
-                                `}
-                            </div>
-                        </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-bold small">Student Statement</label>
                             <textarea class="form-control form-control-sm" id="edit_student_statement" name="student_statement" rows="3">${violation.student_statement || ''}</textarea>
@@ -244,18 +198,8 @@ window.editViolation = function(violationId) {
             console.log('✅ Modal populated successfully');
 
             // Add event listeners for dynamic form behavior
-            const editSeveritySelect = document.getElementById('edit_severity');
-            const editMajorCategoryWrapper = document.getElementById('edit_major_category_wrapper');
             const editStatusSelect = document.getElementById('edit_status');
             const editResolutionWrapper = document.getElementById('edit_resolution_wrapper');
-
-            if (editSeveritySelect) {
-                editSeveritySelect.addEventListener('change', function() {
-                    if (editMajorCategoryWrapper) {
-                        editMajorCategoryWrapper.style.display = this.value === 'major' ? 'block' : 'none';
-                    }
-                });
-            }
 
             if (editStatusSelect) {
                 editStatusSelect.addEventListener('change', function() {
@@ -265,23 +209,7 @@ window.editViolation = function(violationId) {
                 });
             }
 
-            // Add witness field management functions
-            window.addWitnessField = function() {
-                const container = document.getElementById('edit_witnesses_container');
-                const newInput = document.createElement('div');
-                newInput.className = 'input-group mb-2';
-                newInput.innerHTML = `
-                    <input type="text" class="form-control" name="witnesses[]" placeholder="Witness name">
-                    <button type="button" class="btn btn-outline-danger" onclick="removeWitnessField(this)">
-                        <i class="ri-delete-bin-line"></i>
-                    </button>
-                `;
-                container.appendChild(newInput);
-            };
 
-            window.removeWitnessField = function(button) {
-                button.closest('.input-group').remove();
-            };
 
             // Add form submission handler
             const currentViolationId = violationId;
@@ -289,27 +217,9 @@ window.editViolation = function(violationId) {
                 e.preventDefault();
                 console.log('📤 Form submission started');
 
-                // Validate required fields
-                const descriptionValue = form.description.value.trim();
-                if (!descriptionValue) {
-                    alert('Description is required.');
-                    return;
-                }
-
-                // Collect and filter witnesses (remove empty ones)
-                const witnessInputs = form.querySelectorAll('input[name="witnesses[]"]');
-                const witnesses = Array.from(witnessInputs).map(input => input.value.trim()).filter(value => value.length > 0);
-
                 const formData = new FormData(form);
-            const submitBtn = document.querySelector('#recordViolationModal button[type="submit"]');
+            const submitBtn = document.querySelector('#editViolationModal button[type="submit"]');
             const originalText = submitBtn.innerHTML;
-
-                // Set trimmed description
-                formData.set('description', descriptionValue);
-
-                // Remove existing witnesses and add filtered ones
-                formData.delete('witnesses[]');
-                witnesses.forEach(witness => formData.append('witnesses[]', witness));
 
                 // Add CSRF token and method spoofing
                 formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
@@ -522,73 +432,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Show/hide major category based on severity
-    const severitySelect = document.getElementById('violationSeverity');
-    const majorCategoryWrapper = document.getElementById('majorCategoryWrapper');
-    const majorCategorySelect = document.getElementById('majorCategory');
     const violationTitleSelect = document.getElementById('violationTitle');
 
-    // Function to update offense dropdown based on selection
-    function updateOffenseDropdown() {
-        const severity = severitySelect.value;
-        const majorCategory = majorCategorySelect.value;
 
-        // If no severity selected, show all offenses
-        if (!severity) {
-            populateAllOffenses();
-            return;
-        }
-
-        // Clear current options
-        violationTitleSelect.innerHTML = '<option value="">-- Select Offense --</option>';
-
-        if (severity === 'minor') {
-            // Populate with minor offenses
-            offenseOptions.minor.forEach(offense => {
-                const option = document.createElement('option');
-                option.value = offense;
-                option.textContent = offense;
-                violationTitleSelect.appendChild(option);
-            });
-        } else if (severity === 'major' && majorCategory) {
-            // Populate with major offenses from selected category
-            if (offenseOptions.major[majorCategory]) {
-                offenseOptions.major[majorCategory].forEach(offense => {
-                    const option = document.createElement('option');
-                    option.value = offense;
-                    option.textContent = offense;
-                    violationTitleSelect.appendChild(option);
-                });
-            }
-        }
-
-        // Show custom input if no offenses are available or user wants to add custom
-        const customOption = document.createElement('option');
-        customOption.value = 'custom';
-        customOption.textContent = '-- Custom Offense --';
-        violationTitleSelect.appendChild(customOption);
-    }
-
-    // Event listeners for dropdown changes
-    if (severitySelect) {
-        severitySelect.addEventListener('change', function() {
-            if (this.value === 'major') {
-                majorCategoryWrapper.classList.remove('d-none');
-                // Reset and update offenses when switching to major
-                majorCategorySelect.value = '';
-                updateOffenseDropdown();
-            } else {
-                majorCategoryWrapper.classList.add('d-none');
-                updateOffenseDropdown();
-            }
-        });
-    }
-
-    if (majorCategorySelect) {
-        majorCategorySelect.addEventListener('change', function() {
-            updateOffenseDropdown();
-        });
-    }
 
     // Handle title selection and custom offense input
     if (violationTitleSelect) {
@@ -597,35 +443,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Automatically determine severity and category if title is predefined
             if (selectedTitle && selectedTitle !== 'custom' && titleToSeverityMap[selectedTitle]) {
-                const mapping = titleToSeverityMap[selectedTitle];
-                severitySelect.value = mapping.severity;
-
-                if (mapping.severity === 'major') {
-                    majorCategoryWrapper.classList.remove('d-none');
-                    majorCategorySelect.value = mapping.category;
-
-                    // For major violations, disable student search and show incident form
-                    const studentSearchInput = document.getElementById('violationStudentSearch');
-                    if (studentSearchInput) {
-                        studentSearchInput.disabled = true;
-                        studentSearchInput.placeholder = "Student name disabled for major violations";
-                    }
-
-                    // Hide the record violation modal and show incident form
-                    window.ModalManager.hide('recordViolationModal');
-                    showIncidentForm();
-                } else {
-                    majorCategoryWrapper.classList.add('d-none');
-                    majorCategorySelect.value = '';
-
-                    // Re-enable student search for minor violations
-                    const studentSearchInput = document.getElementById('violationStudentSearch');
-                    if (studentSearchInput) {
-                        studentSearchInput.disabled = false;
-                        studentSearchInput.placeholder = "Type student name or ID...";
-                    }
-                }
-
                 // Re-select the current title
                 this.value = selectedTitle;
             }
@@ -717,9 +534,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Reset form
-            if (severitySelect) severitySelect.value = '';
-            if (majorCategoryWrapper) majorCategoryWrapper.classList.add('d-none');
-            if (majorCategorySelect) majorCategorySelect.value = '';
 
             // Populate all offenses in the title dropdown
             populateAllOffenses();
@@ -751,13 +565,10 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 // Check if required elements exist
                 const violationForm = document.getElementById('recordViolationForm');
-                const severityEl = document.getElementById('violationSeverity');
-                const descriptionEl = document.getElementById('violationDescription');
                 const dateEl = document.getElementById('violationDate');
-                const locationEl = document.getElementById('violationLocation');
                 const csrfTokenEl = document.querySelector('meta[name="csrf-token"]');
 
-                if (!violationForm || !severityEl || !descriptionEl || !dateEl || !locationEl || !csrfTokenEl) {
+                if (!violationForm || !dateEl || !csrfTokenEl) {
                     throw new Error('Form elements are missing. Please refresh the page and try again.');
                 }
 
@@ -781,35 +592,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Manually append all required fields from the form
                     formData.append('student_id', student.id);
                     formData.append('title', getViolationTitle());
-                    formData.append('description', descriptionEl.value.trim());
-                    formData.append('severity', severityEl.value);
-                    formData.append('major_category', document.getElementById('majorCategory').value);
                     formData.append('violation_date', dateEl.value);
                     formData.append('violation_time', document.getElementById('violationTime').value);
-                    formData.append('location', locationEl.value);
                     formData.append('status', 'pending');
-
-                    // Append witnesses
-                    const witnessInputs = document.querySelectorAll('#witnessesContainer input[name="witnesses[]"]');
-                    witnessInputs.forEach(input => {
-                        if (input.value.trim()) {
-                            formData.append('witnesses[]', input.value.trim());
-                        }
-                    });
-
-                    // Append attachments
-                    const attachmentInput = document.querySelector('input[name="attachments[]"]');
-                    if (attachmentInput && attachmentInput.files.length > 0) {
-                        for (let i = 0; i < attachmentInput.files.length; i++) {
-                            formData.append('attachments[]', attachmentInput.files[i]);
-                        }
-                    }
 
                     console.log('Submitting violation data for student:', student.name, {
                         student_id: student.id,
-                        title: formData.get('title'),
-                        severity: formData.get('severity'),
-                        description: formData.get('description')
+                        title: formData.get('title')
                     });
 
                     const response = await fetch('/guidance/violations', {
@@ -954,8 +743,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Student search functionality for violation modal
     const studentSearchInput = document.getElementById('violationStudentSearch');
-    const studentIdInput = document.getElementById('violationStudentId');
     const studentSuggestions = document.getElementById('studentSuggestions');
+    const selectedStudentsContainer = document.getElementById('selectedStudentsContainer');
 
     let searchTimeout;
     let currentFocus = -1;
@@ -1110,14 +899,6 @@ window.viewViolation = function(violationId) {
               <h6 class="mt-3">Violation Details</h6>
               <table class="table table-sm">
                 <tbody>
-                  <tr><td><strong>Type:</strong></td><td>
-                    <span class="badge bg-secondary">${data.violation_type ? data.violation_type.charAt(0).toUpperCase() + data.violation_type.slice(1) : 'N/A'}</span>
-                  </td></tr>
-                  <tr><td><strong>Severity:</strong></td><td>
-                    <span class="badge bg-${data.severity === 'minor' ? 'success' : 'warning'}">
-                      ${data.severity === 'minor' ? 'Minor Offense' : (data.severity === 'major' ? 'Major Offense' : 'N/A')}
-                    </span>
-                  </td></tr>
                   <tr><td><strong>Status:</strong></td><td>
                     <span class="badge bg-${data.status === 'pending' ? 'warning' : (data.status === 'resolved' ? 'success' : 'info')}">
                       ${data.status ? data.status.charAt(0).toUpperCase() + data.status.slice(1) : 'N/A'}
@@ -1125,29 +906,11 @@ window.viewViolation = function(violationId) {
                   </td></tr>
                   <tr><td><strong>Date:</strong></td><td>${new Date(data.violation_date).toLocaleDateString()}</td></tr>
                   <tr><td><strong>Time:</strong></td><td>${data.violation_time ? (data.violation_time.length > 5 ? data.violation_time.substring(0, 5) : data.violation_time) : 'N/A'}</td></tr>
-                  <tr><td><strong>Location:</strong></td><td>${data.location || 'N/A'}</td></tr>
                 </tbody>
               </table>
             </div>
             <div class="col-md-6">
-              <h6>Violation Information</h6>
-              <div class="mb-3">
-                <label class="form-label fw-bold">Title:</label>
-                <p>${data.title}</p>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-bold">Description:</label>
-                <p>${data.description}</p>
-              </div>
-              
-              ${data.witnesses && data.witnesses.length > 0 ? `
-                <div class="mb-3">
-                  <label class="form-label fw-bold">Witnesses:</label>
-                  <ul class="list-unstyled">
-                    ${data.witnesses.map(witness => `<li>• ${witness}</li>`).join('')}
-                  </ul>
-                </div>
-              ` : ''}
+
               
               
               ${data.resolution ? `
@@ -1503,32 +1266,17 @@ window.useCustomOffense = function() {
     }
 }
 
-// Function to add more witness fields
-window.addWitnessField = function() {
-    const container = document.getElementById('witnessesContainer');
-    const newInput = document.createElement('div');
-    newInput.className = 'input-group mb-2';
-    newInput.innerHTML = `
-        <input type="text" class="form-control" name="witnesses[]" placeholder="Witness name">
-        <button type="button" class="btn btn-outline-danger" onclick="removeWitnessField(this)">
-            <i class="ri-delete-bin-line"></i>
-        </button>
-    `;
-    container.appendChild(newInput);
-}
-
-// Function to remove witness field
-window.removeWitnessField = function(button) {
-    button.closest('.input-group').remove();
-}
-
 window.openViolationModal = function(student) {
-    document.getElementById('violationStudentId').value = student.id;
+    // Add student to selected
+    if (!window.selectedStudents.some(s => s.id === student.id)) {
+        window.selectedStudents.push({
+            id: student.id,
+            name: `${student.first_name} ${student.last_name} (${student.student_id || 'No ID'})`
+        });
+        updateSelectedStudentsDisplay();
+    }
 
     // Reset form
-    document.getElementById('violationSeverity').value = '';
-    document.getElementById('majorCategoryWrapper').classList.add('d-none');
-    document.getElementById('majorCategory').value = '';
     document.getElementById('violationTitle').innerHTML = '<option value="">-- Select Offense --</option>';
 
     const customInput = document.getElementById('customOffenseInput');
@@ -1650,9 +1398,7 @@ function showIncidentForm() {
                 formData.append('incident_date', date);
                 formData.append('incident_time', time);
 
-                // Append other fields if needed (location, notes, etc.)
-                const location = document.getElementById('violationLocation').value;
-                if (location) formData.append('location', location);
+
 
 
                 // Add CSRF
@@ -2035,4 +1781,3 @@ window.generateIncidentForm = function() {
         // printWindow.close();
     };
 }
-

@@ -75,7 +75,7 @@ class ViolationController extends Controller
         $validator = Validator::make($request->all(), [
             'student_id' => 'required|exists:students,id',
             'violation_type' => 'required|string|max:50',
-            'description' => 'required|string',
+            'description' => 'nullable|string',
             'date' => 'required|date',
             'severity' => 'nullable|in:minor,major,severe',
             'location' => 'nullable|string|max:100',
